@@ -10,6 +10,12 @@ namespace SimpleGridFly
         // Camera Attributes
         public Vector3 Position { get; private set; }
 
+
+
+
+
+
+        
         public Vector3 Front { get; private set; }
         public Vector3 Up { get; private set; }
         public Vector3 Right { get; private set; }
