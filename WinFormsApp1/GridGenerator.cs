@@ -17,8 +17,8 @@ public static class GridGenerator
         float totalWidth = regionCountX * regionSeparation;
         float totalHeight = regionCountZ * regionSeparation;
 
-        Vector3 minorColor = new Vector3(0.6f, 0.6f, 0.6f);
-        Vector3 majorColor = new Vector3(0.9f, 0.9f, 0.9f);
+        Vector3 minorColor = new Vector3(0.0f, 0.0f, 0.9f);
+        Vector3 majorColor = new Vector3(0.9f, 0.0f, 0.0f);
 
         // Lines parallel to X (constant Z)
         for (int z = 0; z <= regionCountZ; z++)
@@ -29,8 +29,8 @@ public static class GridGenerator
             // Major grid line at region boundary
             lines.AddRange(new float[]
             {
-                0, 0, zPos, color.X, color.Y, color.Z,
-                totalWidth, 0, zPos, color.X, color.Y, color.Z,
+                0, 0, zPos, majorColor.X, majorColor.Y, majorColor.Z,
+                totalWidth, 0, zPos, majorColor.X, majorColor.Y, majorColor.Z,
             });
 
             // Minor grid lines within the region

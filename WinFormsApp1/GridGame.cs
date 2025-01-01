@@ -12,120 +12,6 @@ namespace SimpleGridFly
 {
     public class GridGame : GameWindow
     {
-        // --- Shader Source Definitions ---
-        // Grid Vertex Shader Source
-        private const string GridVertexShaderSrc = @"
-#version 330 core
-layout (location=0) in vec3 aPosition;
-layout (location=1) in vec3 aColor;
-
-out vec3 vColor;
-
-uniform mat4 uModel;
-uniform mat4 uView;
-uniform mat4 uProjection;
-
-void main()
-{
-    vColor = aColor;
-    gl_Position = uProjection * uView * uModel * vec4(aPosition, 1.0);
-}";
-
-        // Grid Fragment Shader Source
-        private const string GridFragmentShaderSrc = @"
-#version 330 core
-in vec3 vColor;
-out vec4 FragColor;
-
-void main()
-{
-    FragColor = vec4(vColor, 1.0);
-}";
-
-        // Terrain Vertex Shader Source
-        private const string TerrainVertexShaderSrc = @"
-#version 330 core
-layout (location=0) in vec3 aPosition;
-layout (location=1) in vec3 aNormal;
-layout (location=2) in vec3 aColor;
-
-out vec3 vColor;
-out vec3 vNormal;
-out vec3 vFragPos;
-
-uniform mat4 uModel;
-uniform mat4 uView;
-uniform mat4 uProjection;
-
-void main()
-{
-    vFragPos = vec3(uModel * vec4(aPosition, 1.0));
-    vNormal = mat3(transpose(inverse(uModel))) * aNormal;
-    vColor = aColor;
-    gl_Position = uProjection * uView * vec4(vFragPos, 1.0);
-}";
-
-        // Terrain Fragment Shader Source
-        private const string TerrainFragmentShaderSrc = @"
-#version 330 core
-in vec3 vColor;
-in vec3 vNormal;
-in vec3 vFragPos;
-
-out vec4 FragColor;
-
-// Simple directional light
-uniform vec3 lightDir = normalize(vec3(-0.2, -1.0, -0.3));
-uniform vec3 lightColor = vec3(1.0, 1.0, 1.0);
-uniform vec3 ambientColor = vec3(0.3, 0.3, 0.3);
-
-void main()
-{
-    // Ambient
-    vec3 ambient = ambientColor * vColor;
-
-    // Diffuse
-    float diff = max(dot(vNormal, -lightDir), 0.0);
-    vec3 diffuse = diff * lightColor * vColor;
-
-    vec3 result = ambient + diffuse;
-    FragColor = vec4(result, 1.0);
-}";
-
-        // Text Vertex Shader Source
-        private const string TextVertexShaderSrc = @"
-#version 330 core
-layout (location=0) in vec3 aPosition;
-layout (location=1) in vec2 aTexCoord;
-
-out vec2 TexCoord;
-
-uniform mat4 uProjection;
-uniform mat4 uView;
-uniform mat4 uModel;
-
-void main()
-{
-    TexCoord = aTexCoord;
-    gl_Position = uProjection * uView * uModel * vec4(aPosition, 1.0);
-}";
-
-        // Text Fragment Shader Source
-        private const string TextFragmentShaderSrc = @"
-#version 330 core
-in vec2 TexCoord;
-out vec4 FragColor;
-
-uniform sampler2D uTextTexture;
-
-void main()
-{
-    vec4 sampled = texture(uTextTexture, TexCoord);
-    if (sampled.a < 0.1)
-        discard;
-    FragColor = sampled;
-}";
-
         // --- Member Variables ---
         private Camera _camera;
 
@@ -200,7 +86,7 @@ void main()
 
             // Initialize camera near middle of the grid, a bit above, looking forward
             _camera = new Camera(
-                new Vector3(9600f, 500f, 9600f), // Position at the center (assuming 10x10 regions)
+                new Vector3(167200f, 500f, 167200f), // Position at the center (assuming 10x10 regions)
                 225f,                             // Yaw to face towards negative Z and X
                 -30f,                             // Pitch to look downward
                 Size.X / (float)Size.Y
@@ -237,13 +123,13 @@ void main()
             GL.BindVertexArray(0);
 
             // 4) Build grid shader
-            _gridShaderProgram = CreateShaderProgram(GridVertexShaderSrc, GridFragmentShaderSrc);
+            _gridShaderProgram = CreateShaderProgram(ShaderManager.GridVertexShaderSrc, ShaderManager.GridFragmentShaderSrc);
             _gridUViewLoc = GL.GetUniformLocation(_gridShaderProgram, "uView");
             _gridUProjLoc = GL.GetUniformLocation(_gridShaderProgram, "uProjection");
             _gridUModelLoc = GL.GetUniformLocation(_gridShaderProgram, "uModel");
 
             // 5) Build terrain shader
-            _terrainShaderProgram = CreateShaderProgram(TerrainVertexShaderSrc, TerrainFragmentShaderSrc);
+            _terrainShaderProgram = CreateShaderProgram(ShaderManager.TerrainVertexShaderSrc, ShaderManager.TerrainFragmentShaderSrc);
             _terrainUViewLoc = GL.GetUniformLocation(_terrainShaderProgram, "uView");
             _terrainUProjLoc = GL.GetUniformLocation(_terrainShaderProgram, "uProjection");
             _terrainUModelLoc = GL.GetUniformLocation(_terrainShaderProgram, "uModel");
@@ -352,10 +238,10 @@ void main()
                 }
             }
 
-
             if (KeyboardState.IsKeyPressed(Keys.T))
-            { _terrainManager.TestTextureRendering(250); }
-
+            {
+                _terrainManager.InitializeTextures();
+            }
 
             // Update terrains based on camera position at defined intervals
             _timeSinceLastUpdate += args.Time;
@@ -403,6 +289,7 @@ void main()
 
             // Draw the grid
             GL.BindVertexArray(_gridVao);
+
             GL.DrawArrays(PrimitiveType.Lines, 0, _gridVertexCount);
 
             // 2) Draw all loaded terrains with terrain shader
@@ -518,13 +405,13 @@ void main()
         {
             // Compile vertex shader
             int vertexShader = GL.CreateShader(ShaderType.VertexShader);
-            GL.ShaderSource(vertexShader, TextVertexShaderSrc);
+            GL.ShaderSource(vertexShader, ShaderManager.TextVertexShaderSrc);
             GL.CompileShader(vertexShader);
             CheckShader(vertexShader, "TEXT VERTEX");
 
             // Compile fragment shader
             int fragmentShader = GL.CreateShader(ShaderType.FragmentShader);
-            GL.ShaderSource(fragmentShader, TextFragmentShaderSrc);
+            GL.ShaderSource(fragmentShader, ShaderManager.TextFragmentShaderSrc);
             GL.CompileShader(fragmentShader);
             CheckShader(fragmentShader, "TEXT FRAGMENT");
 
@@ -657,20 +544,5 @@ void main()
                 Console.WriteLine($"ERROR::{type}::Link\n{info}");
             }
         }
-
-        /// <summary>
-        /// Renders all loaded terrain regions.
-        /// </summary>
-        public void RenderTerrains()
-        {
-            _terrainManager.RenderTerrains();
-        }
-
-
-
-
-
-
-
     }
 }

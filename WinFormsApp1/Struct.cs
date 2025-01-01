@@ -15,19 +15,6 @@
         {
             return new Point8(x, y);
         }
-
-        // Override Equals and GetHashCode for dictionary key usage
-        public override bool Equals(object obj)
-        {
-            if (obj is Point8 other)
-                return X == other.X && Y == other.Y;
-            return false;
-        }
-
-        public override int GetHashCode()
-        {
-            return X.GetHashCode() * 397 ^ Y.GetHashCode();
-        }
     }
 
     public struct Point32
@@ -42,29 +29,11 @@
         }
     }
 
-    public class CMapMeshCell
+    public struct TextureInfo
     {
-        public float Height { get; set; }
-        public ushort Texture { get; set; }
-        public byte Brightness { get; set; }
-    }
-
-    public class CMapMeshTile
-    {
-        public byte ExtraMin { get; set; }
-        public byte ExtraMax { get; set; }
-    }
-
-    public class CMapMeshBlock
-    {
-        public string BlockName { get; set; }
-        public Dictionary<Point8, CMapMeshCell> MapCells { get; set; }
-        public byte WaterType { get; set; }
-        public byte WaterWaveType { get; set; }
-        public float SeaLevel { get; set; }
-        public CMapMeshTile[] MapMeshTiles { get; set; }
-        public float HeightMax { get; set; }
-        public float HeightMin { get; set; }
-        public byte[] Reserved { get; set; }
+        public int Id { get; set; }           // First ID
+        public string SecondaryId { get; set; } // Second ID (as a string)
+        public string Region { get; set; }    // First quoted string
+        public string TexturePath { get; set; } // Second quoted string
     }
 }
