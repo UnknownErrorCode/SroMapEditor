@@ -5,6 +5,7 @@ using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using System.Drawing.Imaging;
+using System.Runtime.InteropServices;
 using Keys = OpenTK.Windowing.GraphicsLibraryFramework.Keys;
 using PixelFormat = OpenTK.Graphics.OpenGL4.PixelFormat;
 
@@ -24,18 +25,6 @@ namespace SimpleGridFly
 
         // Terrain Manager
         private TerrainManager _terrainManager;
-
-        // Shaders
-        private int _terrainShaderProgram;
-
-        private int _terrainUViewLoc;
-        private int _terrainUProjLoc;
-        private int _terrainUModelLoc;
-
-        private int _gridShaderProgram;
-        private int _gridUViewLoc;
-        private int _gridUProjLoc;
-        private int _gridUModelLoc;
 
         // Mouse drag
         private bool _isDragging = false;
@@ -58,11 +47,6 @@ namespace SimpleGridFly
         // Text rendering variables
         private int _textTexture;
 
-        private int _textVao;
-        private int _textVbo;
-        private int _textEbo;
-        private int _textShaderProgram;
-
         // Text management
         private string _currentText = string.Empty;
 
@@ -74,8 +58,14 @@ namespace SimpleGridFly
             // We do NOT lock the mouse, so we can click & drag
             CursorState = CursorState.Normal;
             UpdateFrequency = 50f;
+
         }
 
+        private static void DebugCallback(DebugSource source, DebugType type, int id, DebugSeverity severity, int length, IntPtr message, IntPtr userParam)
+        {
+            string msg = Marshal.PtrToStringAnsi(message, length);
+            Console.WriteLine($"GL Debug: {msg}");
+        }
         protected override void OnLoad()
         {
             base.OnLoad();
@@ -83,6 +73,8 @@ namespace SimpleGridFly
             // GL settings
             GL.ClearColor(0.1f, 0.1f, 0.1f, 1.0f);
             GL.Enable(EnableCap.DepthTest);
+            GL.Enable(EnableCap.DebugOutput);
+            GL.DebugMessageCallback(DebugCallback, IntPtr.Zero);
 
             // Initialize camera near middle of the grid, a bit above, looking forward
             _camera = new Camera(
@@ -122,24 +114,10 @@ namespace SimpleGridFly
 
             GL.BindVertexArray(0);
 
-            // 4) Build grid shader
-            _gridShaderProgram = CreateShaderProgram(ShaderManager.GridVertexShaderSrc, ShaderManager.GridFragmentShaderSrc);
-            _gridUViewLoc = GL.GetUniformLocation(_gridShaderProgram, "uView");
-            _gridUProjLoc = GL.GetUniformLocation(_gridShaderProgram, "uProjection");
-            _gridUModelLoc = GL.GetUniformLocation(_gridShaderProgram, "uModel");
-
-            // 5) Build terrain shader
-            _terrainShaderProgram = CreateShaderProgram(ShaderManager.TerrainVertexShaderSrc, ShaderManager.TerrainFragmentShaderSrc);
-            _terrainUViewLoc = GL.GetUniformLocation(_terrainShaderProgram, "uView");
-            _terrainUProjLoc = GL.GetUniformLocation(_terrainShaderProgram, "uProjection");
-            _terrainUModelLoc = GL.GetUniformLocation(_terrainShaderProgram, "uModel");
+            ShaderManager.BuildShader();
 
             // 6) Initialize TerrainManager with terrain shader program and model uniform location
-            _terrainManager = new TerrainManager(_terrainShaderProgram, _terrainUModelLoc);
-
-            // 7) Setup text rendering
-            SetupTextQuad();
-            CreateTextShader();
+            _terrainManager = new TerrainManager(ShaderManager._terrainShaderProgram, ShaderManager._terrainUModelLoc);
         }
 
         protected override void OnUnload()
@@ -155,14 +133,8 @@ namespace SimpleGridFly
 
             // Cleanup text
             CleanupTextTextures();
-            GL.DeleteBuffer(_textVbo);
-            GL.DeleteVertexArray(_textVao);
-            GL.DeleteBuffer(_textEbo);
-            GL.DeleteProgram(_textShaderProgram);
 
-            // Cleanup shaders
-            GL.DeleteProgram(_terrainShaderProgram);
-            GL.DeleteProgram(_gridShaderProgram);
+            ShaderManager.Cleanup();
         }
 
         protected override void OnResize(ResizeEventArgs e)
@@ -225,17 +197,10 @@ namespace SimpleGridFly
             // Press 'O' to open folder dialog
             if (KeyboardState.IsKeyPressed(Keys.O))
             {
-                using FolderBrowserDialog fbd = new FolderBrowserDialog
-                {
-                    Description = "Select Terrain Root Directory",
-                    SelectedPath = Directory.GetCurrentDirectory()
-                };
 
-                if (fbd.ShowDialog() == DialogResult.OK)
-                {
-                    _terrainRootDirectory = fbd.SelectedPath;
-                    _terrainManager.IndexTerrains(_terrainRootDirectory);
-                }
+
+                _terrainManager.IndexTerrains("I:\\Clients\\Exay-Origin V1.014\\Map");
+
             }
 
             if (KeyboardState.IsKeyPressed(Keys.T))
@@ -274,18 +239,18 @@ namespace SimpleGridFly
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
             // 1) Draw the grid with grid shader
-            GL.UseProgram(_gridShaderProgram);
+            GL.UseProgram(ShaderManager._gridShaderProgram);
 
             // Send camera matrices
             var view = _camera.GetViewMatrix();
             var proj = _camera.GetProjectionMatrix();
 
-            GL.UniformMatrix4(_gridUViewLoc, false, ref view);
-            GL.UniformMatrix4(_gridUProjLoc, false, ref proj);
+            GL.UniformMatrix4(ShaderManager._gridUViewLoc, false, ref view);
+            GL.UniformMatrix4(ShaderManager._gridUProjLoc, false, ref proj);
 
             // Model matrix for grid
             Matrix4 modelGrid = Matrix4.Identity;
-            GL.UniformMatrix4(_gridUModelLoc, false, ref modelGrid);
+            GL.UniformMatrix4(ShaderManager._gridUModelLoc, false, ref modelGrid);
 
             // Draw the grid
             GL.BindVertexArray(_gridVao);
@@ -293,9 +258,10 @@ namespace SimpleGridFly
             GL.DrawArrays(PrimitiveType.Lines, 0, _gridVertexCount);
 
             // 2) Draw all loaded terrains with terrain shader
-            GL.UseProgram(_terrainShaderProgram);
-            GL.UniformMatrix4(_terrainUViewLoc, false, ref view);
-            GL.UniformMatrix4(_terrainUProjLoc, false, ref proj);
+            GL.UseProgram(ShaderManager._terrainShaderProgram);
+            GL.UniformMatrix4(ShaderManager._terrainUViewLoc, false, ref view);
+            GL.UniformMatrix4(ShaderManager._terrainUProjLoc, false, ref proj);
+            GL.Uniform1(ShaderManager._textureUniformLocation, 0); // Bind to texture unit 0
             _terrainManager.RenderTerrains();
 
             // 3) Render the current region's coordinates as text
@@ -358,78 +324,6 @@ namespace SimpleGridFly
         }
 
         /// <summary>
-        /// Sets up a quad for text rendering.
-        /// </summary>
-        private void SetupTextQuad()
-        {
-            float[] quadVertices = {
-                // positions      // texcoords
-                0.0f, 0.0f, 0.0f, 0.0f, 0.0f, // bottom-left
-                256.0f, 0.0f, 0.0f, 1.0f, 0.0f, // bottom-right
-                256.0f, 64.0f, 0.0f, 1.0f, 1.0f, // top-right
-                0.0f, 64.0f, 0.0f, 0.0f, 1.0f  // top-left
-            };
-
-            uint[] indices = {
-                0, 1, 2,
-                2, 3, 0
-            };
-
-            _textVao = GL.GenVertexArray();
-            _textVbo = GL.GenBuffer();
-            _textEbo = GL.GenBuffer();
-
-            GL.BindVertexArray(_textVao);
-
-            GL.BindBuffer(BufferTarget.ArrayBuffer, _textVbo);
-            GL.BufferData(BufferTarget.ArrayBuffer, quadVertices.Length * sizeof(float), quadVertices, BufferUsageHint.StaticDraw);
-
-            GL.BindBuffer(BufferTarget.ElementArrayBuffer, _textEbo);
-            GL.BufferData(BufferTarget.ElementArrayBuffer, indices.Length * sizeof(uint), indices, BufferUsageHint.StaticDraw);
-
-            // Position attribute (location=0)
-            GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, 5 * sizeof(float), 0);
-            GL.EnableVertexAttribArray(0);
-
-            // TexCoord attribute (location=1)
-            GL.VertexAttribPointer(1, 2, VertexAttribPointerType.Float, false, 5 * sizeof(float), 3 * sizeof(float));
-            GL.EnableVertexAttribArray(1);
-
-            GL.BindVertexArray(0);
-        }
-
-        /// <summary>
-        /// Creates and compiles the text shader program.
-        /// </summary>
-        private void CreateTextShader()
-        {
-            // Compile vertex shader
-            int vertexShader = GL.CreateShader(ShaderType.VertexShader);
-            GL.ShaderSource(vertexShader, ShaderManager.TextVertexShaderSrc);
-            GL.CompileShader(vertexShader);
-            CheckShader(vertexShader, "TEXT VERTEX");
-
-            // Compile fragment shader
-            int fragmentShader = GL.CreateShader(ShaderType.FragmentShader);
-            GL.ShaderSource(fragmentShader, ShaderManager.TextFragmentShaderSrc);
-            GL.CompileShader(fragmentShader);
-            CheckShader(fragmentShader, "TEXT FRAGMENT");
-
-            // Link shaders into a program
-            _textShaderProgram = GL.CreateProgram();
-            GL.AttachShader(_textShaderProgram, vertexShader);
-            GL.AttachShader(_textShaderProgram, fragmentShader);
-            GL.LinkProgram(_textShaderProgram);
-            CheckProgram(_textShaderProgram, "TEXT PROGRAM");
-
-            // Delete shaders as they're linked now
-            GL.DetachShader(_textShaderProgram, vertexShader);
-            GL.DetachShader(_textShaderProgram, fragmentShader);
-            GL.DeleteShader(vertexShader);
-            GL.DeleteShader(fragmentShader);
-        }
-
-        /// <summary>
         /// Renders text by mapping the texture onto a quad.
         /// </summary>
         private void RenderText(string text, Vector2 position)
@@ -442,19 +336,19 @@ namespace SimpleGridFly
             int texture = _textTexturesCache[text];
 
             // Use text shader program
-            GL.UseProgram(_textShaderProgram);
+            GL.UseProgram(ShaderManager._textShaderProgram);
 
             // Create model matrix to position the text
             Matrix4 model = Matrix4.CreateTranslation(new Vector3(position.X, position.Y, 0.0f));
-            GL.UniformMatrix4(GL.GetUniformLocation(_textShaderProgram, "uModel"), false, ref model);
+            GL.UniformMatrix4(GL.GetUniformLocation(ShaderManager._textShaderProgram, "uModel"), false, ref model);
 
             // Create orthographic projection matrix for 2D rendering
             Matrix4 ortho = Matrix4.CreateOrthographicOffCenter(0, Size.X, Size.Y, 0, -1.0f, 1.0f);
-            GL.UniformMatrix4(GL.GetUniformLocation(_textShaderProgram, "uProjection"), false, ref ortho);
+            GL.UniformMatrix4(GL.GetUniformLocation(ShaderManager._textShaderProgram, "uProjection"), false, ref ortho);
 
             // Set view matrix to identity for 2D overlay
             Matrix4 view = Matrix4.Identity;
-            GL.UniformMatrix4(GL.GetUniformLocation(_textShaderProgram, "uView"), false, ref view);
+            GL.UniformMatrix4(GL.GetUniformLocation(ShaderManager._textShaderProgram, "uView"), false, ref view);
 
             // Enable blending
             GL.Enable(EnableCap.Blend);
@@ -463,10 +357,10 @@ namespace SimpleGridFly
             // Bind texture
             GL.ActiveTexture(TextureUnit.Texture0);
             GL.BindTexture(TextureTarget.Texture2D, texture);
-            GL.Uniform1(GL.GetUniformLocation(_textShaderProgram, "uTextTexture"), 0);
+            GL.Uniform1(GL.GetUniformLocation(ShaderManager._textShaderProgram, "uTextTexture"), 0);
 
             // Bind VAO and draw
-            GL.BindVertexArray(_textVao);
+            GL.BindVertexArray(ShaderManager._textVao);
             GL.DrawElements(PrimitiveType.Triangles, 6, DrawElementsType.UnsignedInt, 0);
 
             // Cleanup
@@ -488,61 +382,6 @@ namespace SimpleGridFly
                 GL.DeleteTexture(tex);
             }
             _textTexturesCache.Clear();
-        }
-
-        /// <summary>
-        /// Creates and compiles the shader program.
-        /// </summary>
-        private int CreateShaderProgram(string vertexSrc, string fragmentSrc)
-        {
-            int vertex = GL.CreateShader(ShaderType.VertexShader);
-            GL.ShaderSource(vertex, vertexSrc);
-            GL.CompileShader(vertex);
-            CheckShader(vertex, "VERTEX");
-
-            int fragment = GL.CreateShader(ShaderType.FragmentShader);
-            GL.ShaderSource(fragment, fragmentSrc);
-            GL.CompileShader(fragment);
-            CheckShader(fragment, "FRAGMENT");
-
-            int program = GL.CreateProgram();
-            GL.AttachShader(program, vertex);
-            GL.AttachShader(program, fragment);
-            GL.LinkProgram(program);
-            CheckProgram(program, "PROGRAM");
-
-            GL.DetachShader(program, vertex);
-            GL.DetachShader(program, fragment);
-            GL.DeleteShader(vertex);
-            GL.DeleteShader(fragment);
-
-            return program;
-        }
-
-        /// <summary>
-        /// Checks shader compilation status.
-        /// </summary>
-        private void CheckShader(int handle, string type)
-        {
-            GL.GetShader(handle, ShaderParameter.CompileStatus, out int success);
-            if (success == 0)
-            {
-                string info = GL.GetShaderInfoLog(handle);
-                Console.WriteLine($"ERROR::{type}::Compile\n{info}");
-            }
-        }
-
-        /// <summary>
-        /// Checks program linking status.
-        /// </summary>
-        private void CheckProgram(int program, string type)
-        {
-            GL.GetProgram(program, GetProgramParameterName.LinkStatus, out int success);
-            if (success == 0)
-            {
-                string info = GL.GetProgramInfoLog(program);
-                Console.WriteLine($"ERROR::{type}::Link\n{info}");
-            }
         }
     }
 }

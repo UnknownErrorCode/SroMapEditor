@@ -48,15 +48,19 @@ namespace SimpleGridFly
                         // Extract texture index
                         int textureIndex = meshCell0.Texture & 0x03FF; // Extract lower 10 bits
 
+                        if (TextureManager.TryGetTextureLayer(textureIndex, out int openGLTexID))
+                            textureIndex = openGLTexID;
+
                         float h0 = meshCell0.Height;
                         float h1 = meshCell1.Height;
                         float h2 = meshCell2.Height;
                         float h3 = meshCell3.Height;
 
-                        Vector3 p0 = new Vector3(baseX + cellX * CELL_SIZE, h0, baseZ + cellZ * CELL_SIZE);
-                        Vector3 p1 = new Vector3(baseX + (cellX + 1) * CELL_SIZE, h1, baseZ + cellZ * CELL_SIZE);
-                        Vector3 p2 = new Vector3(baseX + cellX * CELL_SIZE, h2, baseZ + (cellZ + 1) * CELL_SIZE);
-                        Vector3 p3 = new Vector3(baseX + (cellX + 1) * CELL_SIZE, h3, baseZ + (cellZ + 1) * CELL_SIZE);
+                        // Invert Z-axis by negating the Z-coordinate
+                        Vector3 p0 = new Vector3(baseX + cellX * CELL_SIZE, h0, -(baseZ + cellZ * CELL_SIZE));
+                        Vector3 p1 = new Vector3(baseX + (cellX + 1) * CELL_SIZE, h1, -(baseZ + cellZ * CELL_SIZE));
+                        Vector3 p2 = new Vector3(baseX + cellX * CELL_SIZE, h2, -(baseZ + (cellZ + 1) * CELL_SIZE));
+                        Vector3 p3 = new Vector3(baseX + (cellX + 1) * CELL_SIZE, h3, -(baseZ + (cellZ + 1) * CELL_SIZE));
 
                         Vector3 n0 = ComputeNormal(p0, p1, p2);
                         Vector3 n1 = ComputeNormal(p2, p1, p3);
@@ -78,7 +82,6 @@ namespace SimpleGridFly
                 }
             }
             Vertices = vertices.ToArray();
-            // return vertices.ToArray();
         }
 
         /// <summary>
@@ -93,7 +96,7 @@ namespace SimpleGridFly
             return n;
         }
 
-        private void AddVertexWithTexture(List<float> vertices, Vector3 pos, Vector3 normal, Vector2 texCoord, int textureId)
+        private void AddVertexWithTexture(List<float> vertices, Vector3 pos, Vector3 normal, Vector2 texCoord, int textureId = 0)
         {
             vertices.Add(pos.X);
             vertices.Add(pos.Y);

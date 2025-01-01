@@ -76,38 +76,6 @@ namespace WinFormsApp1
         public JMXHeader Header => header;
 
         /// <summary>
-        /// Get the EntryBlock by x & y coordinate
-        /// </summary>
-        /// <param name="x"></param>
-        /// <param name="y"></param>
-        /// <returns>[MapMeshBlock] block</returns>
-        [Obsolete]
-        public bool GetEntryBlock(Point8 point, out CMapMeshBlock meshBlock)
-        {
-            var contains = Blocks.ContainsKey(point);
-            meshBlock = contains ? Blocks[point] : default(CMapMeshBlock);
-            return contains;
-        }
-
-        public float GetHightByfPoint(float regX, float regY)
-        {
-            var bx = (int)regX / (1920 / 6);
-            var by = (int)regY / (1920 / 6);
-            if (bx == 6)
-                bx -= 1;
-            if (by == 6)
-                by -= 1;
-
-            var cx = regX / (1920 / 16);
-            var cy = (regY / (1920 / 16) - 16) * -1;
-
-            Point8 Point1 = Point8.FromXY((byte)bx, (byte)by);
-            Point8 Point2 = Point8.FromXY((byte)cx, (byte)cy);
-
-            return Blocks[Point1].MapCells[Point2].Height;
-        }
-
-        /// <summary>
         /// Reads a single <see cref="CMapMeshBlock"/> from the <see cref="BinaryReader"/> <paramref name="reader"/>.
         /// </summary>
         /// <param name="reader"></param>

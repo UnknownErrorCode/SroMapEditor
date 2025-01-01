@@ -16,8 +16,6 @@ namespace SimpleGridFly
             public Vector3 Position; // World position based on X and Z
         }
 
-        private TextureManager textureManager = new();
-
         private readonly int _shaderProgram;
         private readonly int _uModelLoc;
 
@@ -67,7 +65,7 @@ namespace SimpleGridFly
                 string zDirName = Path.GetFileName(zDir);
                 if (!int.TryParse(zDirName, out int zCoord))
                 {
-                    MessageBox.Show($"Invalid Z-coordinate folder name: {zDirName}", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    Console.WriteLine($"Invalid Z-coordinate folder name: {zDirName}", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     continue;
                 }
 
@@ -79,7 +77,7 @@ namespace SimpleGridFly
                     string xFileName = Path.GetFileNameWithoutExtension(mFile);
                     if (!int.TryParse(xFileName, out int xCoord))
                     {
-                        MessageBox.Show($"Invalid X-coordinate filename: {xFileName}.m", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        Console.WriteLine($"Invalid X-coordinate filename: {xFileName}.m", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                         continue;
                     }
 
@@ -148,7 +146,7 @@ namespace SimpleGridFly
         /// </summary>
         private Vector3 CalculateRegionPosition(int regionX, int regionZ)
         {
-            return new Vector3(regionX * RegionSeparation, 0f, regionZ * RegionSeparation);
+            return new Vector3(regionX * RegionSeparation, 0f, (regionZ * RegionSeparation));
         }
 
         /// <summary>
@@ -193,7 +191,7 @@ namespace SimpleGridFly
                 GL.VertexAttribPointer(2, 2, VertexAttribPointerType.Float, false, stride, 6 * sizeof(float));
                 GL.EnableVertexAttribArray(2);
 
-                // Color attribute (location=2)
+                // TextureID(location=2)
                 GL.VertexAttribPointer(3, 1, VertexAttribPointerType.Float, false, stride, 8 * sizeof(float));
                 GL.EnableVertexAttribArray(3);
 
@@ -238,9 +236,14 @@ namespace SimpleGridFly
         /// </summary>
         public void RenderTerrains()
         {
+            TextureManager.BindTextureArray(0); // Ensure the texture array is bound
+
             foreach (var terrain in LoadedTerrains.Values)
             {
-                Matrix4 model = Matrix4.CreateTranslation(terrain.Position);
+                // Create a mirroring transformation for the Z-axis
+                Matrix4 mirrorZ = Matrix4.CreateScale(1, 1, -1);
+
+                Matrix4 model = mirrorZ * Matrix4.CreateTranslation(terrain.Position);
                 GL.UniformMatrix4(_uModelLoc, false, ref model);
 
                 GL.BindVertexArray(terrain.Vao);
@@ -249,7 +252,7 @@ namespace SimpleGridFly
         }
 
         public void InitializeTextures()
-             => textureManager.InitializeTextures("I:\\Clients\\Exay-Origin V1.014\\Map");
+             => TextureManager.InitializeTextures("I:\\Clients\\Exay-Origin V1.014\\Map");
 
         /// <summary>
         /// Cleans up all loaded terrains by deleting their VAOs and VBOs.
