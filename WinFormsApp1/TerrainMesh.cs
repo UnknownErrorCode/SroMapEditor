@@ -65,10 +65,15 @@ namespace SimpleGridFly
                         Vector3 n0 = ComputeNormal(p0, p1, p2);
                         Vector3 n1 = ComputeNormal(p2, p1, p3);
 
-                        Vector2 uv0 = new Vector2(0.0f, 0.0f);
-                        Vector2 uv1 = new Vector2(1.0f, 0.0f);
-                        Vector2 uv2 = new Vector2(0.0f, 1.0f);
-                        Vector2 uv3 = new Vector2(1.0f, 1.0f);
+                        //  Vector2 uv0 = new Vector2(0.0f, 0.0f);
+                        //  Vector2 uv1 = new Vector2(1.0f, 0.0f);
+                        //  Vector2 uv2 = new Vector2(0.0f, 1.0f);
+                        //  Vector2 uv3 = new Vector2(1.0f, 1.0f);
+
+                        Vector2 uv0 = new Vector2(0.0f, 1.0f);
+                        Vector2 uv1 = new Vector2(1.0f, 1.0f);
+                        Vector2 uv2 = new Vector2(0.0f, 0.0f);
+                        Vector2 uv3 = new Vector2(1.0f, 0.0f);
 
                         // Add vertices for two triangles
                         AddVertexWithTexture(vertices, p0, n0, uv0, textureIndex);

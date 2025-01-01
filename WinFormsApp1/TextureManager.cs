@@ -2,6 +2,7 @@
 using Structs;
 using System.Drawing.Imaging;
 using System.Text.RegularExpressions;
+using ErrorCode = OpenTK.Graphics.OpenGL4.ErrorCode;
 
 namespace SimpleGridFly
 {
@@ -13,8 +14,6 @@ namespace SimpleGridFly
 
         private const int TextureWidth = 512; // Adjust to your texture resolution
         private const int TextureHeight = 512;
-
-
 
         /// <summary>
         /// Initializes the texture manager by loading textures from the given map folder.
@@ -39,39 +38,6 @@ namespace SimpleGridFly
 
             LoadTextureArray();
             MessageBox.Show($"Loaded {TextureMap.Count} textures into the texture array.");
-        }
-
-        /// <summary>
-        /// Loads a texture into OpenGL and returns the texture ID.
-        /// </summary>
-        /// <param name="texturePath">The file path of the texture.</param>
-        /// <returns>The OpenGL texture ID, or -1 if the texture failed to load.</returns>
-        private static int LoadTexture(string texturePath)
-        {
-            if (!File.Exists(texturePath))
-            {
-                Console.WriteLine($"Texture file not found: {texturePath}");
-                return -1;
-            }
-
-            int textureId = GL.GenTexture();
-            GL.BindTexture(TextureTarget.Texture2D, textureId);
-
-            using Bitmap bitmap = new Bitmap(texturePath);
-            BitmapData data = bitmap.LockBits(new Rectangle(0, 0, bitmap.Width, bitmap.Height),
-                                              ImageLockMode.ReadOnly,
-                                              System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-
-            GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, data.Width, data.Height, 0,
-                          OpenTK.Graphics.OpenGL4.PixelFormat.Bgra, PixelType.UnsignedByte, data.Scan0);
-
-            bitmap.UnlockBits(data);
-
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
-
-            GL.BindTexture(TextureTarget.Texture2D, 0);
-            return textureId;
         }
 
         /// <summary>
@@ -117,7 +83,7 @@ namespace SimpleGridFly
         }
 
         /// <summary>
-        /// Creates a texture array and loads all textures into it.
+        /// Creates a texture array and loads all textures into it, resizing smaller textures to the required dimensions.
         /// </summary>
         private static void LoadTextureArray()
         {
@@ -139,17 +105,36 @@ namespace SimpleGridFly
 
                 if (File.Exists(texturePath))
                 {
+                    using Bitmap originalBitmap = new Bitmap(texturePath);
 
-                    using Bitmap bitmap = new Bitmap(texturePath);
-                    BitmapData data = bitmap.LockBits(new Rectangle(0, 0, bitmap.Width, bitmap.Height),
-                                                      ImageLockMode.ReadOnly,
-                                                      System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+                    Bitmap resizedBitmap;
+                    // Check if the texture size matches the required size
+                    if (originalBitmap.Width != TextureWidth || originalBitmap.Height != TextureHeight)
+                    {
+                        Console.WriteLine($"Resizing texture: {texturePath} from {originalBitmap.Width}x{originalBitmap.Height} to {TextureWidth}x{TextureHeight}");
+                        resizedBitmap = ResizeBitmap(originalBitmap, TextureWidth, TextureHeight);
+                    }
+                    else
+                    {
+                        resizedBitmap = new Bitmap(originalBitmap); // Clone the original if resizing isn't needed
+                    }
 
-                    GL.TexSubImage3D(TextureTarget.Texture2DArray, 0, 0, 0, layer, bitmap.Width, bitmap.Height, 1,
+                    // Lock the resized bitmap data
+                    BitmapData data = resizedBitmap.LockBits(new Rectangle(0, 0, resizedBitmap.Width, resizedBitmap.Height),
+                                                             ImageLockMode.ReadOnly,
+                                                             System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+
+                    GL.TexSubImage3D(TextureTarget.Texture2DArray, 0, 0, 0, layer, resizedBitmap.Width, resizedBitmap.Height, 1,
                                      OpenTK.Graphics.OpenGL4.PixelFormat.Bgra, PixelType.UnsignedByte, data.Scan0);
 
-                    var err = GL.GetError();
-                    bitmap.UnlockBits(data);
+                    ErrorCode err = GL.GetError();
+                    if (err != ErrorCode.NoError)
+                    {
+                        Console.WriteLine($"OpenGL Error: {err} while uploading texture {texturePath}");
+                    }
+
+                    resizedBitmap.UnlockBits(data);
+                    resizedBitmap.Dispose(); // Dispose of the resized bitmap after use
 
                     TextureMap[kvp.Key] = layer; // Map the texture ID to the array layer
                     layer++;
@@ -167,6 +152,24 @@ namespace SimpleGridFly
             GL.TexParameter(TextureTarget.Texture2DArray, TextureParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
 
             GL.BindTexture(TextureTarget.Texture2DArray, 0);
+        }
+
+        /// <summary>
+        /// Resizes a bitmap to the specified width and height.
+        /// </summary>
+        /// <param name="source">The source bitmap to resize.</param>
+        /// <param name="width">The target width.</param>
+        /// <param name="height">The target height.</param>
+        /// <returns>A resized bitmap.</returns>
+        private static Bitmap ResizeBitmap(Bitmap source, int width, int height)
+        {
+            Bitmap resized = new Bitmap(width, height);
+            using Graphics graphics = Graphics.FromImage(resized);
+            graphics.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighQuality;
+            graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+            graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
+            graphics.DrawImage(source, 0, 0, width, height);
+            return resized;
         }
 
         /// <summary>

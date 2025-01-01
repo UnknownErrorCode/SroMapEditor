@@ -17,14 +17,13 @@ public static class GridGenerator
         float totalWidth = regionCountX * regionSeparation;
         float totalHeight = regionCountZ * regionSeparation;
 
-        Vector3 minorColor = new Vector3(0.0f, 0.0f, 0.9f);
-        Vector3 majorColor = new Vector3(0.9f, 0.0f, 0.0f);
+        Vector3 minorColor = new Vector3(0.0f, 0.0f, 0.9f); // Blue
+        Vector3 majorColor = new Vector3(0.9f, 0.0f, 0.0f); // Red
 
         // Lines parallel to X (constant Z)
         for (int z = 0; z <= regionCountZ; z++)
         {
             float zPos = z * regionSeparation;
-            Vector3 color = majorColor;
 
             // Major grid line at region boundary
             lines.AddRange(new float[]
@@ -33,16 +32,18 @@ public static class GridGenerator
                 totalWidth, 0, zPos, majorColor.X, majorColor.Y, majorColor.Z,
             });
 
-            // Minor grid lines within the region
-            for (int b = 1; b < 17; b++) // 16 blocks per region
+            // Minor grid lines within the current region
+            if (z < regionCountZ) // Only add minor lines within the region
             {
-                float minorZ = zPos + b * blockSize;
-                color = minorColor;
-                lines.AddRange(new float[]
+                for (int b = 1; b < 16; b++) // 16 blocks per region
                 {
-                    0, 0, minorZ, color.X, color.Y, color.Z,
-                    totalWidth, 0, minorZ, color.X, color.Y, color.Z,
-                });
+                    float minorZ = zPos + b * blockSize;
+                    lines.AddRange(new float[]
+                    {
+                        0, 0, minorZ, minorColor.X, minorColor.Y, minorColor.Z,
+                        totalWidth, 0, minorZ, minorColor.X, minorColor.Y, minorColor.Z,
+                    });
+                }
             }
         }
 
@@ -50,25 +51,26 @@ public static class GridGenerator
         for (int x = 0; x <= regionCountX; x++)
         {
             float xPos = x * regionSeparation;
-            Vector3 color = majorColor;
 
             // Major grid line at region boundary
             lines.AddRange(new float[]
             {
-                xPos, 0, 0, color.X, color.Y, color.Z,
-                xPos, 0, totalHeight, color.X, color.Y, color.Z,
+                xPos, 0, 0, majorColor.X, majorColor.Y, majorColor.Z,
+                xPos, 0, totalHeight, majorColor.X, majorColor.Y, majorColor.Z,
             });
 
-            // Minor grid lines within the region
-            for (int b = 1; b < 17; b++) // 16 blocks per region
+            // Minor grid lines within the current region
+            if (x < regionCountX) // Only add minor lines within the region
             {
-                float minorX = xPos + b * blockSize;
-                color = minorColor;
-                lines.AddRange(new float[]
+                for (int b = 1; b < 16; b++) // 16 blocks per region
                 {
-                    minorX, 0, 0, color.X, color.Y, color.Z,
-                    minorX, 0, totalHeight, color.X, color.Y, color.Z,
-                });
+                    float minorX = xPos + b * blockSize;
+                    lines.AddRange(new float[]
+                    {
+                        minorX, 0, 0, minorColor.X, minorColor.Y, minorColor.Z,
+                        minorX, 0, totalHeight, minorColor.X, minorColor.Y, minorColor.Z,
+                    });
+                }
             }
         }
 

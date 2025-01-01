@@ -26,7 +26,7 @@ namespace SimpleGridFly
         private readonly List<(int X, int Z, string FilePath)> _allTerrains = new List<(int X, int Z, string FilePath)>();
 
         // Define the range around the camera to load terrains (e.g., 2 regions in each direction)
-        private readonly int _loadRange = 3;
+        private readonly int _loadRange = 5;
 
         // Region separation and block size
         public float RegionSeparation { get; private set; } = 1920f;
@@ -146,7 +146,7 @@ namespace SimpleGridFly
         /// </summary>
         private Vector3 CalculateRegionPosition(int regionX, int regionZ)
         {
-            return new Vector3(regionX * RegionSeparation, 0f, (regionZ * RegionSeparation));
+            return new Vector3(regionX * RegionSeparation, 0f, regionZ * RegionSeparation);
         }
 
         /// <summary>
@@ -242,6 +242,7 @@ namespace SimpleGridFly
             {
                 // Create a mirroring transformation for the Z-axis
                 Matrix4 mirrorZ = Matrix4.CreateScale(1, 1, -1);
+                // Matrix4 mirrorZ2 = mirrorZ * Matrix4.CreateScale(1, 1, -1);
 
                 Matrix4 model = mirrorZ * Matrix4.CreateTranslation(terrain.Position);
                 GL.UniformMatrix4(_uModelLoc, false, ref model);

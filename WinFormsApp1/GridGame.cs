@@ -58,7 +58,6 @@ namespace SimpleGridFly
             // We do NOT lock the mouse, so we can click & drag
             CursorState = CursorState.Normal;
             UpdateFrequency = 50f;
-
         }
 
         private static void DebugCallback(DebugSource source, DebugType type, int id, DebugSeverity severity, int length, IntPtr message, IntPtr userParam)
@@ -66,6 +65,7 @@ namespace SimpleGridFly
             string msg = Marshal.PtrToStringAnsi(message, length);
             Console.WriteLine($"GL Debug: {msg}");
         }
+
         protected override void OnLoad()
         {
             base.OnLoad();
@@ -197,10 +197,7 @@ namespace SimpleGridFly
             // Press 'O' to open folder dialog
             if (KeyboardState.IsKeyPressed(Keys.O))
             {
-
-
                 _terrainManager.IndexTerrains("I:\\Clients\\Exay-Origin V1.014\\Map");
-
             }
 
             if (KeyboardState.IsKeyPressed(Keys.T))
