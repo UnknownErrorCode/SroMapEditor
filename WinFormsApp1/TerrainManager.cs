@@ -8,23 +8,15 @@ namespace SimpleGridFly
 {
     public class TerrainManager
     {
-        // Struct to hold terrain mesh data and its position
-        public struct TerrainMesh
-        {
-            public int Vao;
-            public int Vbo;
-            public int VertexCount;
-            public Vector3 Position; // World position based on X and Z
-        }
-
-        private readonly int _shaderProgram;
         private readonly int _uModelLoc;
 
         // Dictionary to store loaded terrains with their grid positions as keys
-        public Dictionary<(int X, int Z), TerrainMesh> LoadedTerrains { get; private set; } = new Dictionary<(int X, int Z), TerrainMesh>();
+        public Dictionary<(int X, int Z), TerrainMeshBase> LoadedTerrains { get; private set; } = new Dictionary<(int X, int Z), TerrainMeshBase>();
 
         // List to store all available terrains with their grid positions
         private readonly List<(int X, int Z, string FilePath)> _allTerrains = new List<(int X, int Z, string FilePath)>();
+
+        public List<(int X, int Z, string FilePath)> AllTerrains => _allTerrains;
 
         // Define the range around the camera to load terrains (e.g., 2 regions in each direction)
         private readonly int _loadRange = 5;
@@ -32,14 +24,9 @@ namespace SimpleGridFly
         // Region separation and block size
         public float RegionSeparation { get; private set; } = 1920f;
 
-        private int _blocksPerRegion = 16;
-        private float _blockSize = 120f;
-        private float _cellScale = 7.5f; // Scale per cell
-
-        public TerrainManager(int shaderProgram, int modelLocation)
+        public TerrainManager()
         {
-            _shaderProgram = shaderProgram;
-            _uModelLoc = modelLocation;
+            _uModelLoc = ShaderManager._terrainUModelLoc;
         }
 
         /// <summary>
@@ -166,7 +153,7 @@ namespace SimpleGridFly
                 }
 
                 // Generate mesh
-                SimpleGridFly.TerrainMesh terrain = new SimpleGridFly.TerrainMesh(region);
+                TerrainMesh terrain = new TerrainMesh(region);
 
                 int vertexCount = terrain.Vertices.Length / 9; // 9 floats per vertex (3 position, 3 normal, 3 texture)
 
@@ -199,15 +186,14 @@ namespace SimpleGridFly
                 GL.BindVertexArray(0);
 
                 // Store terrain mesh with its world position
-                TerrainMesh tm = new TerrainMesh
+                TerrainMeshBase mBase = new TerrainMeshBase()
                 {
                     Vao = vao,
                     Vbo = vbo,
                     VertexCount = vertexCount,
                     Position = CalculateRegionPosition(regionX, regionZ) // Correct positioning
                 };
-
-                LoadedTerrains.Add((regionX, regionZ), tm);
+                LoadedTerrains.Add((regionX, regionZ), mBase);
 
                 Console.WriteLine($"Loaded terrain at Region X:{regionX}, Z:{regionZ}");
             }
@@ -222,7 +208,7 @@ namespace SimpleGridFly
         /// </summary>
         private void UnloadTerrain(int regionX, int regionZ)
         {
-            if (LoadedTerrains.TryGetValue((regionX, regionZ), out TerrainMesh tm))
+            if (LoadedTerrains.TryGetValue((regionX, regionZ), out TerrainMeshBase tm))
             {
                 GL.DeleteBuffer(tm.Vbo);
                 GL.DeleteVertexArray(tm.Vao);
@@ -235,8 +221,14 @@ namespace SimpleGridFly
         /// <summary>
         /// Renders all loaded terrain regions.
         /// </summary>
-        public void RenderTerrains()
+        public void RenderTerrains(Matrix4 view, Matrix4 proj)
         {
+            // Render terrains using the terrain shader
+            GL.UseProgram(ShaderManager._terrainShaderProgram);
+            GL.UniformMatrix4(ShaderManager._terrainUViewLoc, false, ref view);
+            GL.UniformMatrix4(ShaderManager._terrainUProjLoc, false, ref proj);
+            GL.Uniform1(ShaderManager._textureUniformLocation, 0); // Bind to texture unit 0
+
             TextureManager.BindTextureArray(0); // Ensure the texture array is bound
 
             foreach (var terrain in LoadedTerrains.Values)
@@ -252,7 +244,6 @@ namespace SimpleGridFly
                 GL.DrawArrays(PrimitiveType.Triangles, 0, terrain.VertexCount);
             }
         }
-
 
         /// <summary>
         /// Cleans up all loaded terrains by deleting their VAOs and VBOs.

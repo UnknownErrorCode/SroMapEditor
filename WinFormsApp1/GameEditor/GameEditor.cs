@@ -66,6 +66,12 @@ namespace SimpleGridFly
         private void loadTerrainToolStripMenuItem1_Click(object sender, EventArgs e)
         {
             gridGame.InitializeTerrainMeshes();
+            TreeNode meshNode = new TreeNode("TerrainMesh");
+            foreach (var item in gridGame.LoadedTerrains)
+            {
+                meshNode.Nodes.Add(new TreeNode($"Region: {item.Item3.Replace("I:\\Clients\\Exay-Origin V1.014\\Map\\", "")}") { Tag = item });
+            }
+            treeView1.Nodes.Add(meshNode);
         }
     }
 }

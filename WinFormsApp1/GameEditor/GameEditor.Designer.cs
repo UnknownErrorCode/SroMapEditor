@@ -29,24 +29,50 @@
         private void InitializeComponent()
         {
             panel1 = new Panel();
+            statusStrip1 = new StatusStrip();
+            toolStripStatusLabelInfo = new ToolStripStatusLabel();
+            treeView1 = new TreeView();
             menuStrip1 = new MenuStrip();
             loadTerrainToolStripMenuItem = new ToolStripMenuItem();
             runEditorToolStripMenuItem = new ToolStripMenuItem();
             loadTexturesToolStripMenuItem = new ToolStripMenuItem();
             loadTerrainToolStripMenuItem1 = new ToolStripMenuItem();
-            treeView1 = new TreeView();
             panel1.SuspendLayout();
+            statusStrip1.SuspendLayout();
             menuStrip1.SuspendLayout();
             SuspendLayout();
             // 
             // panel1
             // 
+            panel1.Controls.Add(statusStrip1);
             panel1.Controls.Add(treeView1);
             panel1.Dock = DockStyle.Fill;
             panel1.Location = new Point(0, 24);
             panel1.Name = "panel1";
             panel1.Size = new Size(800, 426);
             panel1.TabIndex = 0;
+            // 
+            // statusStrip1
+            // 
+            statusStrip1.Items.AddRange(new ToolStripItem[] { toolStripStatusLabelInfo });
+            statusStrip1.Location = new Point(0, 404);
+            statusStrip1.Name = "statusStrip1";
+            statusStrip1.Size = new Size(800, 22);
+            statusStrip1.TabIndex = 1;
+            statusStrip1.Text = "statusStrip1";
+            // 
+            // toolStripStatusLabelInfo
+            // 
+            toolStripStatusLabelInfo.Name = "toolStripStatusLabelInfo";
+            toolStripStatusLabelInfo.Size = new Size(118, 17);
+            toolStripStatusLabelInfo.Text = "toolStripStatusLabel1";
+            // 
+            // treeView1
+            // 
+            treeView1.Location = new Point(163, 45);
+            treeView1.Name = "treeView1";
+            treeView1.Size = new Size(285, 244);
+            treeView1.TabIndex = 0;
             // 
             // menuStrip1
             // 
@@ -86,13 +112,6 @@
             loadTerrainToolStripMenuItem1.Text = "Load Terrain";
             loadTerrainToolStripMenuItem1.Click += loadTerrainToolStripMenuItem1_Click;
             // 
-            // treeView1
-            // 
-            treeView1.Location = new Point(60, 49);
-            treeView1.Name = "treeView1";
-            treeView1.Size = new Size(320, 244);
-            treeView1.TabIndex = 0;
-            // 
             // GameEditor
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -105,6 +124,9 @@
             Text = "GameEditor";
             Load += GameEditor_Load;
             panel1.ResumeLayout(false);
+            panel1.PerformLayout();
+            statusStrip1.ResumeLayout(false);
+            statusStrip1.PerformLayout();
             menuStrip1.ResumeLayout(false);
             menuStrip1.PerformLayout();
             ResumeLayout(false);
@@ -120,5 +142,7 @@
         private ToolStripMenuItem loadTexturesToolStripMenuItem;
         private ToolStripMenuItem loadTerrainToolStripMenuItem1;
         private TreeView treeView1;
+        private StatusStrip statusStrip1;
+        private ToolStripStatusLabel toolStripStatusLabelInfo;
     }
 }

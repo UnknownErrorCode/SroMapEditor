@@ -30,17 +30,6 @@ namespace SimpleGridFly
         // The current text to display on screen
         private string _currentText = string.Empty;
 
-        // OpenGL handles for the grid: VAO (Vertex Array Object) and VBO (Vertex Buffer Object)
-        private int _gridVao;
-
-        private int _gridVbo;
-
-        // Total number of vertices in the grid (used for rendering)
-        private int _gridVertexCount;
-
-        // Grid data: vertices for rendering the grid
-        private float[] _gridVertices;
-
         // Flags and variables for mouse dragging
         private bool _isDragging = false;
 
@@ -48,6 +37,8 @@ namespace SimpleGridFly
 
         // Terrain manager for handling terrain loading, rendering, and texture management
         private TerrainManager _terrainManager;
+
+        private GridManager _gridManager;
 
         // Path to the root directory containing terrain files
         private string _terrainRootDirectory = string.Empty;
@@ -61,6 +52,8 @@ namespace SimpleGridFly
         // Timer for regulating terrain updates
         private double _timeSinceLastUpdate = 0.0;
 
+        public List<(int X, int Z, string)> LoadedTerrains => _terrainManager.AllTerrains;
+
         public GridGame(GameWindowSettings gws, NativeWindowSettings nws)
             : base(gws, nws)
         {
@@ -68,9 +61,10 @@ namespace SimpleGridFly
             CursorState = CursorState.Normal;
             // Set update frequency to 50 frames per second
             UpdateFrequency = 50f;
+
+            ShaderManager.BuildShader();
+            _terrainManager = new TerrainManager();
         }
-
-
 
         internal void InitializeTerrainMeshes()
            => _terrainManager.IndexTerrains("I:\\Clients\\Exay-Origin V1.014\\Map");
@@ -93,31 +87,9 @@ namespace SimpleGridFly
                 Size.X / (float)Size.Y            // Aspect ratio
             );
 
-            // Setup the grid with a specified number of regions
-            int regionCountX = 255; // Number of regions along the X-axis
-            int regionCountZ = 128; // Number of regions along the Z-axis
-            _gridVertices = GridGenerator.GenerateGrid(regionCountX, regionCountZ);
-            _gridVertexCount = _gridVertices.Length / 6; // Each vertex contains 6 floats (position + color)
-
-            // Configure VAO and VBO for grid rendering
-            _gridVao = GL.GenVertexArray();
-            _gridVbo = GL.GenBuffer();
-            GL.BindVertexArray(_gridVao);
-            GL.BindBuffer(BufferTarget.ArrayBuffer, _gridVbo);
-            GL.BufferData(BufferTarget.ArrayBuffer, _gridVertices.Length * sizeof(float), _gridVertices, BufferUsageHint.StaticDraw);
-
-            // Set up position attribute (location=0)
-            GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, 6 * sizeof(float), 0);
-            GL.EnableVertexAttribArray(0);
-
-            // Set up color attribute (location=1)
-            GL.VertexAttribPointer(1, 3, VertexAttribPointerType.Float, false, 6 * sizeof(float), 3 * sizeof(float));
-            GL.EnableVertexAttribArray(1);
-            GL.BindVertexArray(0);
+            _gridManager = new GridManager();
 
             // Initialize shaders and terrain manager
-            ShaderManager.BuildShader();
-            _terrainManager = new TerrainManager(ShaderManager._terrainShaderProgram, ShaderManager._terrainUModelLoc);
         }
 
         protected override void OnMouseDown(MouseButtonEventArgs e)
@@ -171,23 +143,12 @@ namespace SimpleGridFly
             // Clear the screen and prepare for rendering
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
-            // Render the grid using the grid shader
-            GL.UseProgram(ShaderManager._gridShaderProgram);
             var view = _camera.GetViewMatrix();
             var proj = _camera.GetProjectionMatrix();
-            GL.UniformMatrix4(ShaderManager._gridUViewLoc, false, ref view);
-            GL.UniformMatrix4(ShaderManager._gridUProjLoc, false, ref proj);
-            Matrix4 modelGrid = Matrix4.Identity;
-            GL.UniformMatrix4(ShaderManager._gridUModelLoc, false, ref modelGrid);
-            GL.BindVertexArray(_gridVao);
-            GL.DrawArrays(PrimitiveType.Lines, 0, _gridVertexCount);
 
-            // Render terrains using the terrain shader
-            GL.UseProgram(ShaderManager._terrainShaderProgram);
-            GL.UniformMatrix4(ShaderManager._terrainUViewLoc, false, ref view);
-            GL.UniformMatrix4(ShaderManager._terrainUProjLoc, false, ref proj);
-            GL.Uniform1(ShaderManager._textureUniformLocation, 0); // Bind to texture unit 0
-            _terrainManager.RenderTerrains();
+            _gridManager.RenderGrid(view, proj);
+
+            _terrainManager.RenderTerrains(view, proj);
 
             // Render text overlay (current region and camera position)
             if (!string.IsNullOrEmpty(_currentText))
@@ -213,8 +174,7 @@ namespace SimpleGridFly
             base.OnUnload();
 
             // Cleanup grid
-            GL.DeleteBuffer(_gridVbo);
-            GL.DeleteVertexArray(_gridVao);
+            _gridManager.Cleanup();
 
             // Cleanup terrains
             _terrainManager.Cleanup();

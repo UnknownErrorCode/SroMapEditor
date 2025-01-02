@@ -5,7 +5,7 @@ using WinFormsApp1;
 
 namespace SimpleGridFly
 {
-    internal class TerrainMesh
+    public class TerrainMesh
     {
         public virtual float[] Vertices { get; private set; }
 
