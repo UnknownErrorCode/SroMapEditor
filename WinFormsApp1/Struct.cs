@@ -28,12 +28,4 @@
             Y = y;
         }
     }
-
-    public struct TextureInfo
-    {
-        public int Id { get; set; }           // First ID
-        public string SecondaryId { get; set; } // Second ID (as a string)
-        public string Region { get; set; }    // First quoted string
-        public string TexturePath { get; set; } // Second quoted string
-    }
 }

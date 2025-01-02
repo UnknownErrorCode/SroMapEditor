@@ -1,6 +1,7 @@
 ﻿// TerrainManager.cs
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
+using SimpleGridFly.Texture;
 using WinFormsApp1;
 
 namespace SimpleGridFly
@@ -252,8 +253,6 @@ namespace SimpleGridFly
             }
         }
 
-        public void InitializeTextures()
-             => TextureManager.InitializeTextures("I:\\Clients\\Exay-Origin V1.014\\Map");
 
         /// <summary>
         /// Cleans up all loaded terrains by deleting their VAOs and VBOs.

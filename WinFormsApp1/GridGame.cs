@@ -4,6 +4,7 @@ using OpenTK.Mathematics;
 using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using OpenTK.Windowing.GraphicsLibraryFramework;
+using SimpleGridFly.Texture;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 using Keys = OpenTK.Windowing.GraphicsLibraryFramework.Keys;
@@ -14,63 +15,71 @@ namespace SimpleGridFly
     public class GridGame : GameWindow
     {
         // --- Member Variables ---
+
+        // Interval (in seconds) for terrain updates
+        private const double UpdateInterval = 0.5;
+
+        // Camera for viewing and navigating the scene
         private Camera _camera;
 
-        // Grid data
-        private float[] _gridVertices;
-
-        private int _gridVao;
-        private int _gridVbo;
-        private int _gridVertexCount;
-
-        // Terrain Manager
-        private TerrainManager _terrainManager;
-
-        // Mouse drag
-        private bool _isDragging = false;
-
-        private Vector2 _lastMousePos;
-
-        // Terrain root directory
-        private string _terrainRootDirectory = string.Empty;
-
-        // Timer to control update frequency
-        private double _timeSinceLastUpdate = 0.0;
-
-        private const double UpdateInterval = 0.5; // seconds
-
-        // Current Region Coordinates
+        // Current region coordinates based on camera position
         private int _currentRegionX = 0;
 
         private int _currentRegionZ = 0;
 
-        // Text rendering variables
-        private int _textTexture;
-
-        // Text management
+        // The current text to display on screen
         private string _currentText = string.Empty;
 
+        // OpenGL handles for the grid: VAO (Vertex Array Object) and VBO (Vertex Buffer Object)
+        private int _gridVao;
+
+        private int _gridVbo;
+
+        // Total number of vertices in the grid (used for rendering)
+        private int _gridVertexCount;
+
+        // Grid data: vertices for rendering the grid
+        private float[] _gridVertices;
+
+        // Flags and variables for mouse dragging
+        private bool _isDragging = false;
+
+        private Vector2 _lastMousePos;
+
+        // Terrain manager for handling terrain loading, rendering, and texture management
+        private TerrainManager _terrainManager;
+
+        // Path to the root directory containing terrain files
+        private string _terrainRootDirectory = string.Empty;
+
+        // Text rendering: texture ID for caching rendered text
+        private int _textTexture;
+
+        // Cache for pre-generated text textures to avoid redundant processing
         private Dictionary<string, int> _textTexturesCache = new Dictionary<string, int>();
+
+        // Timer for regulating terrain updates
+        private double _timeSinceLastUpdate = 0.0;
 
         public GridGame(GameWindowSettings gws, NativeWindowSettings nws)
             : base(gws, nws)
         {
             // We do NOT lock the mouse, so we can click & drag
             CursorState = CursorState.Normal;
+            // Set update frequency to 50 frames per second
             UpdateFrequency = 50f;
         }
 
-        private static void DebugCallback(DebugSource source, DebugType type, int id, DebugSeverity severity, int length, IntPtr message, IntPtr userParam)
-        {
-            string msg = Marshal.PtrToStringAnsi(message, length);
-            Console.WriteLine($"GL Debug: {msg}");
-        }
+
+
+        internal void InitializeTerrainMeshes()
+           => _terrainManager.IndexTerrains("I:\\Clients\\Exay-Origin V1.014\\Map");
 
         protected override void OnLoad()
         {
             base.OnLoad();
 
-            // GL settings
+            // Setup OpenGL states and enable debugging
             GL.ClearColor(0.1f, 0.1f, 0.1f, 1.0f);
             GL.Enable(EnableCap.DepthTest);
             GL.Enable(EnableCap.DebugOutput);
@@ -81,90 +90,45 @@ namespace SimpleGridFly
                 new Vector3(167200f, 500f, 167200f), // Position at the center (assuming 10x10 regions)
                 225f,                             // Yaw to face towards negative Z and X
                 -30f,                             // Pitch to look downward
-                Size.X / (float)Size.Y
+                Size.X / (float)Size.Y            // Aspect ratio
             );
 
-            // 1) Define how many regions you want in X and Z
-            int regionCountX = 255; // Example: 10 regions along X-axis
-            int regionCountZ = 128; // Example: 10 regions along Z-axis
-
-            // 2) Generate the grid based on region counts
+            // Setup the grid with a specified number of regions
+            int regionCountX = 255; // Number of regions along the X-axis
+            int regionCountZ = 128; // Number of regions along the Z-axis
             _gridVertices = GridGenerator.GenerateGrid(regionCountX, regionCountZ);
-            _gridVertexCount = _gridVertices.Length / 6; // each vertex has 6 floats
+            _gridVertexCount = _gridVertices.Length / 6; // Each vertex contains 6 floats (position + color)
 
-            // 3) Create & bind a VAO for grid
+            // Configure VAO and VBO for grid rendering
             _gridVao = GL.GenVertexArray();
             _gridVbo = GL.GenBuffer();
-
             GL.BindVertexArray(_gridVao);
             GL.BindBuffer(BufferTarget.ArrayBuffer, _gridVbo);
-            GL.BufferData(BufferTarget.ArrayBuffer,
-                          _gridVertices.Length * sizeof(float),
-                          _gridVertices,
-                          BufferUsageHint.StaticDraw);
+            GL.BufferData(BufferTarget.ArrayBuffer, _gridVertices.Length * sizeof(float), _gridVertices, BufferUsageHint.StaticDraw);
 
-            // Position attrib (location=0), 3 floats
+            // Set up position attribute (location=0)
             GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, 6 * sizeof(float), 0);
             GL.EnableVertexAttribArray(0);
 
-            // Color attrib (location=1), 3 floats
-            GL.VertexAttribPointer(1, 3, VertexAttribPointerType.Float, false,
-                                   6 * sizeof(float), 3 * sizeof(float));
+            // Set up color attribute (location=1)
+            GL.VertexAttribPointer(1, 3, VertexAttribPointerType.Float, false, 6 * sizeof(float), 3 * sizeof(float));
             GL.EnableVertexAttribArray(1);
-
             GL.BindVertexArray(0);
 
+            // Initialize shaders and terrain manager
             ShaderManager.BuildShader();
-
-            // 6) Initialize TerrainManager with terrain shader program and model uniform location
             _terrainManager = new TerrainManager(ShaderManager._terrainShaderProgram, ShaderManager._terrainUModelLoc);
-        }
-
-        protected override void OnUnload()
-        {
-            base.OnUnload();
-
-            // Cleanup grid
-            GL.DeleteBuffer(_gridVbo);
-            GL.DeleteVertexArray(_gridVao);
-
-            // Cleanup terrains
-            _terrainManager.Cleanup();
-
-            // Cleanup text
-            CleanupTextTextures();
-
-            ShaderManager.Cleanup();
-        }
-
-        protected override void OnResize(ResizeEventArgs e)
-        {
-            base.OnResize(e);
-
-            GL.Viewport(0, 0, e.Width, e.Height);
-            _camera.UpdateAspectRatio(e.Width / (float)e.Height);
         }
 
         protected override void OnMouseDown(MouseButtonEventArgs e)
         {
             base.OnMouseDown(e);
 
-            // If left button pressed => start dragging
+            // Start dragging if the left mouse button is pressed
             if (e.Button == MouseButton.Left)
             {
                 _isDragging = true;
                 _lastMousePos = MousePosition;
-            }
-        }
-
-        protected override void OnMouseUp(MouseButtonEventArgs e)
-        {
-            base.OnMouseUp(e);
-
-            // If left button released => stop dragging
-            if (e.Button == MouseButton.Left)
-            {
-                _isDragging = false;
             }
         }
 
@@ -184,15 +148,101 @@ namespace SimpleGridFly
             }
         }
 
+        protected override void OnMouseUp(MouseButtonEventArgs e)
+        {
+            base.OnMouseUp(e);
+
+            // Stop dragging if the left mouse button is released
+            if (e.Button == MouseButton.Left)
+            {
+                _isDragging = false;
+            }
+        }
+
+        /// <summary>
+        /// Handles rendering the current frame.
+        /// This includes clearing the screen, rendering the grid, drawing terrains, and displaying a text overlay with the current region and camera position.
+        /// </summary>
+        /// <param name="args">Arguments containing timing information for the frame.</param>
+        protected override void OnRenderFrame(FrameEventArgs args)
+        {
+            base.OnRenderFrame(args);
+
+            // Clear the screen and prepare for rendering
+            GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+
+            // Render the grid using the grid shader
+            GL.UseProgram(ShaderManager._gridShaderProgram);
+            var view = _camera.GetViewMatrix();
+            var proj = _camera.GetProjectionMatrix();
+            GL.UniformMatrix4(ShaderManager._gridUViewLoc, false, ref view);
+            GL.UniformMatrix4(ShaderManager._gridUProjLoc, false, ref proj);
+            Matrix4 modelGrid = Matrix4.Identity;
+            GL.UniformMatrix4(ShaderManager._gridUModelLoc, false, ref modelGrid);
+            GL.BindVertexArray(_gridVao);
+            GL.DrawArrays(PrimitiveType.Lines, 0, _gridVertexCount);
+
+            // Render terrains using the terrain shader
+            GL.UseProgram(ShaderManager._terrainShaderProgram);
+            GL.UniformMatrix4(ShaderManager._terrainUViewLoc, false, ref view);
+            GL.UniformMatrix4(ShaderManager._terrainUProjLoc, false, ref proj);
+            GL.Uniform1(ShaderManager._textureUniformLocation, 0); // Bind to texture unit 0
+            _terrainManager.RenderTerrains();
+
+            // Render text overlay (current region and camera position)
+            if (!string.IsNullOrEmpty(_currentText))
+            {
+                RenderText(_currentText, new Vector2(10, 10));
+            }
+
+            // Swap buffers to display the frame
+            SwapBuffers();
+        }
+
+        protected override void OnResize(ResizeEventArgs e)
+        {
+            base.OnResize(e);
+
+            // Adjust viewport and update camera aspect ratio on window resize
+            GL.Viewport(0, 0, e.Width, e.Height);
+            _camera.UpdateAspectRatio(e.Width / (float)e.Height);
+        }
+
+        protected override void OnUnload()
+        {
+            base.OnUnload();
+
+            // Cleanup grid
+            GL.DeleteBuffer(_gridVbo);
+            GL.DeleteVertexArray(_gridVao);
+
+            // Cleanup terrains
+            _terrainManager.Cleanup();
+
+            // Cleanup text
+            CleanupTextTextures();
+
+            ShaderManager.Cleanup();
+        }
+
         protected override void OnUpdateFrame(FrameEventArgs args)
         {
             base.OnUpdateFrame(args);
 
+            // Close the game if the escape key is pressed
             if (KeyboardState.IsKeyDown(Keys.Escape))
                 Close();
 
-            // Process camera movement
+            // Handle camera movement and keyboard inputs
             _camera.ProcessKeyboard(KeyboardState, (float)args.Time);
+
+            // Update terrains periodically and handle region changes
+            _timeSinceLastUpdate += args.Time;
+            if (_timeSinceLastUpdate >= UpdateInterval)
+            {
+                _timeSinceLastUpdate = 0.0;
+                _terrainManager.UpdateLoadedTerrains(_camera.Position);
+            }
 
             // Press 'O' to open folder dialog
             if (KeyboardState.IsKeyPressed(Keys.O))
@@ -202,15 +252,7 @@ namespace SimpleGridFly
 
             if (KeyboardState.IsKeyPressed(Keys.T))
             {
-                _terrainManager.InitializeTextures();
-            }
-
-            // Update terrains based on camera position at defined intervals
-            _timeSinceLastUpdate += args.Time;
-            if (_timeSinceLastUpdate >= UpdateInterval)
-            {
-                _timeSinceLastUpdate = 0.0;
-                _terrainManager.UpdateLoadedTerrains(_camera.Position);
+                TextureManager.InitializeTextures("I:\\Clients\\Exay-Origin V1.014\\Map");
             }
 
             // Update current region coordinates
@@ -223,51 +265,26 @@ namespace SimpleGridFly
                 _currentRegionX = newRegionX;
                 _currentRegionZ = newRegionZ;
                 Console.WriteLine($"Current Region - X: {_currentRegionX}, Z: {_currentRegionZ}");
-                // Update on-screen text
-                _currentText = $"Region X: {_currentRegionX}, Z: {_currentRegionZ}";
             }
+            _currentText = $"Region X: {_currentRegionX}, Z: {_currentRegionZ}   {_camera.Position}  ";
         }
 
-        protected override void OnRenderFrame(FrameEventArgs args)
+        private static void DebugCallback(DebugSource source, DebugType type, int id, DebugSeverity severity, int length, IntPtr message, IntPtr userParam)
         {
-            base.OnRenderFrame(args);
+            string msg = Marshal.PtrToStringAnsi(message, length);
+            Console.WriteLine($"GL Debug: {msg}");
+        }
 
-            // Clear the screen
-            GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
-
-            // 1) Draw the grid with grid shader
-            GL.UseProgram(ShaderManager._gridShaderProgram);
-
-            // Send camera matrices
-            var view = _camera.GetViewMatrix();
-            var proj = _camera.GetProjectionMatrix();
-
-            GL.UniformMatrix4(ShaderManager._gridUViewLoc, false, ref view);
-            GL.UniformMatrix4(ShaderManager._gridUProjLoc, false, ref proj);
-
-            // Model matrix for grid
-            Matrix4 modelGrid = Matrix4.Identity;
-            GL.UniformMatrix4(ShaderManager._gridUModelLoc, false, ref modelGrid);
-
-            // Draw the grid
-            GL.BindVertexArray(_gridVao);
-
-            GL.DrawArrays(PrimitiveType.Lines, 0, _gridVertexCount);
-
-            // 2) Draw all loaded terrains with terrain shader
-            GL.UseProgram(ShaderManager._terrainShaderProgram);
-            GL.UniformMatrix4(ShaderManager._terrainUViewLoc, false, ref view);
-            GL.UniformMatrix4(ShaderManager._terrainUProjLoc, false, ref proj);
-            GL.Uniform1(ShaderManager._textureUniformLocation, 0); // Bind to texture unit 0
-            _terrainManager.RenderTerrains();
-
-            // 3) Render the current region's coordinates as text
-            if (!string.IsNullOrEmpty(_currentText))
+        /// <summary>
+        /// Deletes all cached text textures to free resources.
+        /// </summary>
+        private void CleanupTextTextures()
+        {
+            foreach (var tex in _textTexturesCache.Values)
             {
-                RenderText(_currentText, new Vector2(10, 10));
+                GL.DeleteTexture(tex);
             }
-
-            SwapBuffers();
+            _textTexturesCache.Clear();
         }
 
         /// <summary>
@@ -280,7 +297,7 @@ namespace SimpleGridFly
                 return; // Texture already exists
 
             // Create a bitmap
-            Bitmap bmp = new Bitmap(256, 64);
+            Bitmap bmp = new Bitmap(512, 64);
             using (Graphics gfx = Graphics.FromImage(bmp))
             {
                 gfx.Clear(System.Drawing.Color.Transparent);
@@ -367,18 +384,6 @@ namespace SimpleGridFly
 
             // Disable blending
             GL.Disable(EnableCap.Blend);
-        }
-
-        /// <summary>
-        /// Deletes all cached text textures to free resources.
-        /// </summary>
-        private void CleanupTextTextures()
-        {
-            foreach (var tex in _textTexturesCache.Values)
-            {
-                GL.DeleteTexture(tex);
-            }
-            _textTexturesCache.Clear();
         }
     }
 }

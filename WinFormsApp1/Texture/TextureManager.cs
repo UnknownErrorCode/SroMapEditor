@@ -1,27 +1,56 @@
 ﻿using OpenTK.Graphics.OpenGL4;
-using Structs;
 using System.Drawing.Imaging;
 using System.Text.RegularExpressions;
 using ErrorCode = OpenTK.Graphics.OpenGL4.ErrorCode;
 
-namespace SimpleGridFly
+namespace SimpleGridFly.Texture
 {
     internal static class TextureManager
     {
-        private static Dictionary<int, string> TexturePaths = new(); // Maps texture IDs to file paths
-        private static Dictionary<int, int> TextureMap = new(); // Maps texture IDs to OpenGL texture IDs
-        private static int TextureArrayId; // OpenGL ID for the texture array
+        #region Fields
 
-        private const int TextureWidth = 512; // Adjust to your texture resolution
         private const int TextureHeight = 512;
+        private const int TextureWidth = 512;
+        private static int TextureArrayId;
+        private static Dictionary<int, int> TextureMap = new();
+        private static Dictionary<int, string> TexturePaths = new();
 
+        private static string directory;
+
+        #endregion Fields
+
+        internal static Dictionary<int, string> TextureNames => TexturePaths;
+
+        #region Methods
+
+        /// <summary>
+        /// Binds the texture array for use in rendering.
+        /// </summary>
+        public static void BindTextureArray(int textureUnit = 0)
+        {
+            GL.ActiveTexture(TextureUnit.Texture0 + textureUnit);
+            GL.BindTexture(TextureTarget.Texture2DArray, TextureArrayId);
+        }
+
+        // Adjust to your texture resolution
         /// <summary>
         /// Initializes the texture manager by loading textures from the given map folder.
         /// </summary>
         public static void InitializeTextures(string mapFolderPath)
         {
+            directory = mapFolderPath;
+
+            LoadTexturePaths(mapFolderPath);
+
+            LoadTextureArray();
+            MessageBox.Show($"Loaded {TextureMap.Count} textures into the texture array.");
+        }
+
+        private static void LoadTexturePaths(string mapFolderPath)
+        {
             string ifoPath = $"{mapFolderPath}\\tile2d.ifo";
 
+            TexturePaths.Clear();
             if (!File.Exists(ifoPath))
             {
                 MessageBox.Show("Could not find tile2d.ifo. Terminating application.");
@@ -35,9 +64,26 @@ namespace SimpleGridFly
                 string texturePath = $"{mapFolderPath}\\tile2d\\{texture.TexturePath}".Replace(".ddj", ".png");
                 TexturePaths[texture.Id] = texturePath;
             }
+        }
 
+        /// <summary>
+        /// Reloads the texture array, clearing existing textures and reloading them from the paths.
+        /// </summary>
+        public static void ReloadTextures()
+        {
+            // Delete the existing texture array
+            if (TextureArrayId != 0)
+            {
+                GL.DeleteTexture(TextureArrayId);
+                TextureArrayId = 0;
+                TextureMap.Clear();
+            }
+
+            LoadTexturePaths(directory);
+
+            // Reinitialize the texture array
             LoadTextureArray();
-            MessageBox.Show($"Loaded {TextureMap.Count} textures into the texture array.");
+            Console.WriteLine($"Reloaded {TextureMap.Count} textures into the texture array.");
         }
 
         /// <summary>
@@ -83,6 +129,14 @@ namespace SimpleGridFly
         }
 
         /// <summary>
+        /// Retrieves the texture array layer index for a given game-specific texture ID.
+        /// </summary>
+        public static bool TryGetTextureLayer(int textureId, out int layerIndex)
+        {
+            return TextureMap.TryGetValue(textureId, out layerIndex);
+        }
+
+        /// <summary>
         /// Creates a texture array and loads all textures into it, resizing smaller textures to the required dimensions.
         /// </summary>
         private static void LoadTextureArray()
@@ -95,7 +149,7 @@ namespace SimpleGridFly
             // Allocate storage for the texture array
             GL.TexImage3D(TextureTarget.Texture2DArray, 0, PixelInternalFormat.Rgba,
                           TextureWidth, TextureHeight, textureCount, 0,
-                          OpenTK.Graphics.OpenGL4.PixelFormat.Rgba, PixelType.UnsignedByte, IntPtr.Zero);
+                          OpenTK.Graphics.OpenGL4.PixelFormat.Rgba, PixelType.UnsignedByte, nint.Zero);
 
             // Load each texture into the array
             int layer = 0;
@@ -172,21 +226,6 @@ namespace SimpleGridFly
             return resized;
         }
 
-        /// <summary>
-        /// Binds the texture array for use in rendering.
-        /// </summary>
-        public static void BindTextureArray(int textureUnit = 0)
-        {
-            GL.ActiveTexture(TextureUnit.Texture0 + textureUnit);
-            GL.BindTexture(TextureTarget.Texture2DArray, TextureArrayId);
-        }
-
-        /// <summary>
-        /// Retrieves the texture array layer index for a given game-specific texture ID.
-        /// </summary>
-        public static bool TryGetTextureLayer(int textureId, out int layerIndex)
-        {
-            return TextureMap.TryGetValue(textureId, out layerIndex);
-        }
+        #endregion Methods
     }
 }

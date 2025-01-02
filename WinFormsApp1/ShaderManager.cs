@@ -184,6 +184,7 @@ void main()
         public static int _terrainUProjLoc;
         public static int _terrainUModelLoc;
         public static int _textureUniformLocation;
+
         public static int _gridShaderProgram;
         public static int _gridUViewLoc;
         public static int _gridUProjLoc;
@@ -209,8 +210,10 @@ void main()
             _terrainUModelLoc = GL.GetUniformLocation(_terrainShaderProgram, "uModel");
             _textureUniformLocation = GL.GetUniformLocation(_terrainShaderProgram, "uTextureArray");
 
+            // 3) Build Text shader
+            _textShaderProgram = CreateShaderProgram(ShaderManager.TextVertexShaderSrc, ShaderManager.TextFragmentShaderSrc);
+
             SetupTextQuad();
-            CreateTextShader();
         }
 
         /// <summary>
@@ -221,8 +224,8 @@ void main()
             float[] quadVertices = {
                 // positions      // texcoords
                 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, // bottom-left
-                256.0f, 0.0f, 0.0f, 1.0f, 0.0f, // bottom-right
-                256.0f, 64.0f, 0.0f, 1.0f, 1.0f, // top-right
+                512.0f, 0.0f, 0.0f, 1.0f, 0.0f, // bottom-right
+                512.0f, 64.0f, 0.0f, 1.0f, 1.0f, // top-right
                 0.0f, 64.0f, 0.0f, 0.0f, 1.0f  // top-left
             };
 
@@ -252,37 +255,6 @@ void main()
             GL.EnableVertexAttribArray(1);
 
             GL.BindVertexArray(0);
-        }
-
-        /// <summary>
-        /// Creates and compiles the text shader program.
-        /// </summary>
-        private static void CreateTextShader()
-        {
-            // Compile vertex shader
-            int vertexShader = GL.CreateShader(ShaderType.VertexShader);
-            GL.ShaderSource(vertexShader, ShaderManager.TextVertexShaderSrc);
-            GL.CompileShader(vertexShader);
-            CheckShader(vertexShader, "TEXT VERTEX");
-
-            // Compile fragment shader
-            int fragmentShader = GL.CreateShader(ShaderType.FragmentShader);
-            GL.ShaderSource(fragmentShader, ShaderManager.TextFragmentShaderSrc);
-            GL.CompileShader(fragmentShader);
-            CheckShader(fragmentShader, "TEXT FRAGMENT");
-
-            // Link shaders into a program
-            _textShaderProgram = GL.CreateProgram();
-            GL.AttachShader(_textShaderProgram, vertexShader);
-            GL.AttachShader(_textShaderProgram, fragmentShader);
-            GL.LinkProgram(_textShaderProgram);
-            CheckProgram(_textShaderProgram, "TEXT PROGRAM");
-
-            // Delete shaders as they're linked now
-            GL.DetachShader(_textShaderProgram, vertexShader);
-            GL.DetachShader(_textShaderProgram, fragmentShader);
-            GL.DeleteShader(vertexShader);
-            GL.DeleteShader(fragmentShader);
         }
 
         /// <summary>
