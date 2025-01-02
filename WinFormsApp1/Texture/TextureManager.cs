@@ -13,13 +13,13 @@ namespace SimpleGridFly.Texture
         private const int TextureWidth = 512;
         private static int TextureArrayId;
         private static Dictionary<int, int> TextureMap = new();
-        private static Dictionary<int, string> TexturePaths = new();
+        private static Dictionary<int, string> SroTextureMap = new();
 
         private static string directory = string.Empty;
 
         #endregion Fields
 
-        internal static Dictionary<int, string> TextureNames => TexturePaths;
+        internal static Dictionary<int, string> TextureNames => SroTextureMap;
 
         public static bool Initialized { get; private set; } = false;
 
@@ -57,7 +57,7 @@ namespace SimpleGridFly.Texture
         {
             string ifoPath = $"{mapFolderPath}\\tile2d.ifo";
 
-            TexturePaths.Clear();
+            SroTextureMap.Clear();
             if (!File.Exists(ifoPath))
             {
                 MessageBox.Show("Could not find tile2d.ifo. Terminating application.");
@@ -69,7 +69,7 @@ namespace SimpleGridFly.Texture
             foreach (var texture in textureInfos)
             {
                 string texturePath = $"{mapFolderPath}\\tile2d\\{texture.TexturePath}".Replace(".ddj", ".png");
-                TexturePaths[texture.Id] = texturePath;
+                SroTextureMap[texture.Id] = texturePath;
             }
         }
 
@@ -140,6 +140,13 @@ namespace SimpleGridFly.Texture
         /// </summary>
         public static bool TryGetTextureLayer(int textureId, out int layerIndex)
         {
+            if (SroTextureMap.ContainsKey(textureId))
+            {
+                if (!TextureMap.ContainsKey(textureId))
+                {
+                    int layerID = LoadSingleTexture(new KeyValuePair<int, string>(textureId, SroTextureMap[textureId]));
+                }
+            }
             return TextureMap.TryGetValue(textureId, out layerIndex);
         }
 
@@ -148,7 +155,7 @@ namespace SimpleGridFly.Texture
         /// </summary>
         private static void LoadTextureArray()
         {
-            int textureCount = TexturePaths.Count;
+            int textureCount = SroTextureMap.Count;
             TextureArrayId = GL.GenTexture();
 
             GL.BindTexture(TextureTarget.Texture2DArray, TextureArrayId);
@@ -159,51 +166,10 @@ namespace SimpleGridFly.Texture
                           OpenTK.Graphics.OpenGL4.PixelFormat.Rgba, PixelType.UnsignedByte, nint.Zero);
 
             // Load each texture into the array
-            int layer = 0;
-            foreach (var kvp in TexturePaths)
+
+            foreach (var kvp in SroTextureMap)
             {
-                string texturePath = kvp.Value;
-
-                if (File.Exists(texturePath))
-                {
-                    using Bitmap originalBitmap = new Bitmap(texturePath);
-
-                    Bitmap resizedBitmap;
-                    // Check if the texture size matches the required size
-                    if (originalBitmap.Width != TextureWidth || originalBitmap.Height != TextureHeight)
-                    {
-                        Console.WriteLine($"Resizing texture: {texturePath} from {originalBitmap.Width}x{originalBitmap.Height} to {TextureWidth}x{TextureHeight}");
-                        resizedBitmap = ResizeBitmap(originalBitmap, TextureWidth, TextureHeight);
-                    }
-                    else
-                    {
-                        resizedBitmap = new Bitmap(originalBitmap); // Clone the original if resizing isn't needed
-                    }
-
-                    // Lock the resized bitmap data
-                    BitmapData data = resizedBitmap.LockBits(new Rectangle(0, 0, resizedBitmap.Width, resizedBitmap.Height),
-                                                             ImageLockMode.ReadOnly,
-                                                             System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-
-                    GL.TexSubImage3D(TextureTarget.Texture2DArray, 0, 0, 0, layer, resizedBitmap.Width, resizedBitmap.Height, 1,
-                                     OpenTK.Graphics.OpenGL4.PixelFormat.Bgra, PixelType.UnsignedByte, data.Scan0);
-
-                    ErrorCode err = GL.GetError();
-                    if (err != ErrorCode.NoError)
-                    {
-                        Console.WriteLine($"OpenGL Error: {err} while uploading texture {texturePath}");
-                    }
-
-                    resizedBitmap.UnlockBits(data);
-                    resizedBitmap.Dispose(); // Dispose of the resized bitmap after use
-
-                    TextureMap[kvp.Key] = layer; // Map the texture ID to the array layer
-                    layer++;
-                }
-                else
-                {
-                    Console.WriteLine($"Failed to load texture: {texturePath}");
-                }
+                //int layer = LoadSingleTexture(kvp);
             }
 
             // Set texture parameters
@@ -213,6 +179,53 @@ namespace SimpleGridFly.Texture
             GL.TexParameter(TextureTarget.Texture2DArray, TextureParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
 
             GL.BindTexture(TextureTarget.Texture2DArray, 0);
+        }
+
+        internal static int LoadSingleTexture(KeyValuePair<int, string> kvp)
+        {
+            string texturePath = kvp.Value;
+
+            if (File.Exists(texturePath))
+            {
+                using Bitmap originalBitmap = new Bitmap(texturePath);
+
+                Bitmap resizedBitmap;
+                // Check if the texture size matches the required size
+                if (originalBitmap.Width != TextureWidth || originalBitmap.Height != TextureHeight)
+                {
+                    Console.WriteLine($"Resizing texture: {texturePath} from {originalBitmap.Width}x{originalBitmap.Height} to {TextureWidth}x{TextureHeight}");
+                    resizedBitmap = ResizeBitmap(originalBitmap, TextureWidth, TextureHeight);
+                }
+                else
+                {
+                    resizedBitmap = new Bitmap(originalBitmap); // Clone the original if resizing isn't needed
+                }
+
+                // Lock the resized bitmap data
+                BitmapData data = resizedBitmap.LockBits(new Rectangle(0, 0, resizedBitmap.Width, resizedBitmap.Height),
+                                                         ImageLockMode.ReadOnly,
+                                                         System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+
+                GL.TexSubImage3D(TextureTarget.Texture2DArray, 0, 0, 0, kvp.Key, resizedBitmap.Width, resizedBitmap.Height, 1,
+                                 OpenTK.Graphics.OpenGL4.PixelFormat.Bgra, PixelType.UnsignedByte, data.Scan0);
+
+                ErrorCode err = GL.GetError();
+                if (err != ErrorCode.NoError)
+                {
+                    Console.WriteLine($"OpenGL Error: {err} while uploading texture {texturePath}");
+                }
+
+                resizedBitmap.UnlockBits(data);
+                resizedBitmap.Dispose(); // Dispose of the resized bitmap after use
+
+                TextureMap[kvp.Key] = kvp.Key; // Map the texture ID to the array layer
+            }
+            else
+            {
+                Console.WriteLine($"Failed to load texture: {texturePath}");
+            }
+
+            return TextureMap[kvp.Key];
         }
 
         /// <summary>

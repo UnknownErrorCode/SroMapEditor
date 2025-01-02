@@ -1,4 +1,5 @@
-﻿using OpenTK.Mathematics;
+﻿using OpenTK.Graphics.OpenGL4;
+using OpenTK.Mathematics;
 using SimpleGridFly.Texture;
 using Structs;
 using WinFormsApp1;
@@ -113,6 +114,48 @@ namespace SimpleGridFly
             vertices.Add(texCoord.X);
             vertices.Add(texCoord.Y);
             vertices.Add(textureId);
+        }
+
+        internal bool Generate(out int vao, out int vbo)
+        {
+            try
+            {
+                // 9 floats per vertex (3 position, 3 normal, 3 texture)
+
+                // Create VAO and VBO
+                vao = GL.GenVertexArray();
+                vbo = GL.GenBuffer();
+
+                GL.BindVertexArray(vao);
+                GL.BindBuffer(BufferTarget.ArrayBuffer, vbo);
+                GL.BufferData(BufferTarget.ArrayBuffer, Vertices.Length * sizeof(float), Vertices, BufferUsageHint.StaticDraw);
+
+                int stride = 9 * sizeof(float);
+
+                // Position attribute (location=0)
+                GL.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, false, stride, 0);
+                GL.EnableVertexAttribArray(0);
+
+                // Normal attribute (location=1)
+                GL.VertexAttribPointer(1, 3, VertexAttribPointerType.Float, false, stride, 3 * sizeof(float));
+                GL.EnableVertexAttribArray(1);
+
+                // Color attribute (location=2)
+                GL.VertexAttribPointer(2, 2, VertexAttribPointerType.Float, false, stride, 6 * sizeof(float));
+                GL.EnableVertexAttribArray(2);
+
+                // TextureID(location=2)
+                GL.VertexAttribPointer(3, 1, VertexAttribPointerType.Float, false, stride, 8 * sizeof(float));
+                GL.EnableVertexAttribArray(3);
+
+                GL.BindVertexArray(0);
+                return true;
+            }
+            catch (Exception)
+            {
+                vao = vbo = 0;
+                return false;
+            }
         }
     }
 }

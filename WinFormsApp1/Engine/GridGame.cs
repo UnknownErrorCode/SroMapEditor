@@ -5,10 +5,8 @@ using OpenTK.Windowing.Common;
 using OpenTK.Windowing.Desktop;
 using OpenTK.Windowing.GraphicsLibraryFramework;
 using SimpleGridFly.Texture;
-using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 using Keys = OpenTK.Windowing.GraphicsLibraryFramework.Keys;
-using PixelFormat = OpenTK.Graphics.OpenGL4.PixelFormat;
 
 namespace SimpleGridFly
 {
@@ -43,9 +41,6 @@ namespace SimpleGridFly
         private GridManager _gridManager;
 
         private MapObjectManager _mapObjectManager;
-
-        // Cache for pre-generated text textures to avoid redundant processing
-        private Dictionary<string, int> _textTexturesCache = new Dictionary<string, int>();
 
         // Timer for regulating terrain updates
         private double _timeSinceLastUpdate = 0.0;
@@ -152,10 +147,8 @@ namespace SimpleGridFly
             _terrainManager.RenderTerrains(view, proj);
 
             // Render text overlay (current region and camera position)
-            if (!string.IsNullOrEmpty(_currentText))
-            {
-                RenderText(_currentText, new Vector2(10, 10));
-            }
+            if (!string.IsNullOrEmpty(_currentText) && Title != _currentText)
+                Title = _currentText;
 
             // Swap buffers to display the frame
             SwapBuffers();
@@ -179,9 +172,6 @@ namespace SimpleGridFly
 
             // Cleanup terrains
             _terrainManager.Cleanup();
-
-            // Cleanup text
-            CleanupTextTextures();
 
             ShaderManager.Cleanup();
         }
@@ -234,117 +224,6 @@ namespace SimpleGridFly
         {
             string msg = Marshal.PtrToStringAnsi(message, length);
             Console.WriteLine($"GL Debug: {msg}");
-        }
-
-        /// <summary>
-        /// Deletes all cached text textures to free resources.
-        /// </summary>
-        private void CleanupTextTextures()
-        {
-            foreach (var tex in _textTexturesCache.Values)
-            {
-                GL.DeleteTexture(tex);
-            }
-            _textTexturesCache.Clear();
-        }
-
-        /// <summary>
-        /// Creates a texture from the provided text using System.Drawing.
-        /// Caches textures to avoid recreating them every frame.
-        /// </summary>
-        private void CreateTextTexture(string text)
-        {
-            if (_textTexturesCache.ContainsKey(text))
-                return; // Texture already exists
-
-            // Create a bitmap
-            Bitmap bmp = new Bitmap(512, 64);
-            using (Graphics gfx = Graphics.FromImage(bmp))
-            {
-                gfx.Clear(Color.Transparent);
-                using (Font font = new Font(FontFamily.GenericSansSerif, 16))
-                using (SolidBrush brush = new SolidBrush(Color.White))
-                {
-                    gfx.DrawString(text, font, brush, new PointF(0, 0));
-                }
-            }
-
-            // Generate OpenGL texture
-            int texture = GL.GenTexture();
-            GL.BindTexture(TextureTarget.Texture2D, texture);
-
-            BitmapData data = bmp.LockBits(new Rectangle(0, 0, bmp.Width, bmp.Height),
-                                           ImageLockMode.ReadOnly,
-                                           System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-
-            GL.TexImage2D(TextureTarget.Texture2D,
-                          0,
-                          PixelInternalFormat.Rgba,
-                          data.Width,
-                          data.Height,
-                          0,
-                          PixelFormat.Bgra,
-                          PixelType.UnsignedByte,
-                          data.Scan0);
-
-            bmp.UnlockBits(data);
-            bmp.Dispose();
-
-            // Texture parameters
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Linear);
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
-
-            // Store the texture in the cache
-            _textTexturesCache.Add(text, texture);
-        }
-
-        /// <summary>
-        /// Renders text by mapping the texture onto a quad.
-        /// </summary>
-        private void RenderText(string text, Vector2 position)
-        {
-            if (!_textTexturesCache.ContainsKey(text))
-            {
-                CreateTextTexture(text);
-            }
-
-            int texture = _textTexturesCache[text];
-
-            // Use text shader program
-            GL.UseProgram(ShaderManager._textShaderProgram);
-
-            // Create model matrix to position the text
-            Matrix4 model = Matrix4.CreateTranslation(new Vector3(position.X, position.Y, 0.0f));
-            GL.UniformMatrix4(GL.GetUniformLocation(ShaderManager._textShaderProgram, "uModel"), false, ref model);
-
-            // Create orthographic projection matrix for 2D rendering
-            Matrix4 ortho = Matrix4.CreateOrthographicOffCenter(0, Size.X, Size.Y, 0, -1.0f, 1.0f);
-            GL.UniformMatrix4(GL.GetUniformLocation(ShaderManager._textShaderProgram, "uProjection"), false, ref ortho);
-
-            // Set view matrix to identity for 2D overlay
-            Matrix4 view = Matrix4.Identity;
-            GL.UniformMatrix4(GL.GetUniformLocation(ShaderManager._textShaderProgram, "uView"), false, ref view);
-
-            // Enable blending
-            GL.Enable(EnableCap.Blend);
-            GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-
-            // Bind texture
-            GL.ActiveTexture(TextureUnit.Texture0);
-            GL.BindTexture(TextureTarget.Texture2D, texture);
-            GL.Uniform1(GL.GetUniformLocation(ShaderManager._textShaderProgram, "uTextTexture"), 0);
-
-            // Bind VAO and draw
-            GL.BindVertexArray(ShaderManager._textVao);
-            GL.DrawElements(PrimitiveType.Triangles, 6, DrawElementsType.UnsignedInt, 0);
-
-            // Cleanup
-            GL.BindVertexArray(0);
-            GL.BindTexture(TextureTarget.Texture2D, 0);
-            GL.UseProgram(0);
-
-            // Disable blending
-            GL.Disable(EnableCap.Blend);
         }
     }
 }
