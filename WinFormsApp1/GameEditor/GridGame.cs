@@ -40,12 +40,6 @@ namespace SimpleGridFly
 
         private GridManager _gridManager;
 
-        // Path to the root directory containing terrain files
-        private string _terrainRootDirectory = string.Empty;
-
-        // Text rendering: texture ID for caching rendered text
-        private int _textTexture;
-
         // Cache for pre-generated text textures to avoid redundant processing
         private Dictionary<string, int> _textTexturesCache = new Dictionary<string, int>();
 
@@ -61,8 +55,16 @@ namespace SimpleGridFly
             CursorState = CursorState.Normal;
             // Set update frequency to 50 frames per second
             UpdateFrequency = 50f;
-
+            // Initialize camera near middle of the grid, a bit above, looking forward
+            _camera = new Camera(
+                new Vector3(167200f, 500f, 167200f), // Position at the center (assuming 10x10 regions)
+                225f,                             // Yaw to face towards negative Z and X
+                -30f,                             // Pitch to look downward
+                Size.X / (float)Size.Y            // Aspect ratio
+            );
             ShaderManager.BuildShader();
+
+            _gridManager = new GridManager();
             _terrainManager = new TerrainManager();
         }
 
@@ -78,18 +80,6 @@ namespace SimpleGridFly
             GL.Enable(EnableCap.DepthTest);
             GL.Enable(EnableCap.DebugOutput);
             GL.DebugMessageCallback(DebugCallback, IntPtr.Zero);
-
-            // Initialize camera near middle of the grid, a bit above, looking forward
-            _camera = new Camera(
-                new Vector3(167200f, 500f, 167200f), // Position at the center (assuming 10x10 regions)
-                225f,                             // Yaw to face towards negative Z and X
-                -30f,                             // Pitch to look downward
-                Size.X / (float)Size.Y            // Aspect ratio
-            );
-
-            _gridManager = new GridManager();
-
-            // Initialize shaders and terrain manager
         }
 
         protected override void OnMouseDown(MouseButtonEventArgs e)

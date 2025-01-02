@@ -44,6 +44,7 @@ namespace SimpleGridFly
 
             // Clear any existing entries
             _allTerrains.Clear();
+            LoadedTerrains.Clear();
 
             // Iterate through each subdirectory representing Z-coordinate
             var zDirectories = Directory.GetDirectories(rootDirectory);

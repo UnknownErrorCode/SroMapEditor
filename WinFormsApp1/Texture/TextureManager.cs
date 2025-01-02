@@ -15,11 +15,13 @@ namespace SimpleGridFly.Texture
         private static Dictionary<int, int> TextureMap = new();
         private static Dictionary<int, string> TexturePaths = new();
 
-        private static string directory;
+        private static string directory = string.Empty;
 
         #endregion Fields
 
         internal static Dictionary<int, string> TextureNames => TexturePaths;
+
+        public static bool Initialized { get; private set; } = false;
 
         #region Methods
 
@@ -39,10 +41,15 @@ namespace SimpleGridFly.Texture
         public static void InitializeTextures(string mapFolderPath)
         {
             directory = mapFolderPath;
-
+            if (Initialized)
+            {
+                ReloadTextures();
+                return;
+            }
             LoadTexturePaths(mapFolderPath);
 
             LoadTextureArray();
+            Initialized = true;
             MessageBox.Show($"Loaded {TextureMap.Count} textures into the texture array.");
         }
 

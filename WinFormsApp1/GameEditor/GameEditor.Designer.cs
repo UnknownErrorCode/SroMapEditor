@@ -29,6 +29,8 @@
         private void InitializeComponent()
         {
             panel1 = new Panel();
+            propertyGrid1 = new PropertyGrid();
+            treeView2 = new TreeView();
             statusStrip1 = new StatusStrip();
             toolStripStatusLabelInfo = new ToolStripStatusLabel();
             treeView1 = new TreeView();
@@ -44,6 +46,8 @@
             // 
             // panel1
             // 
+            panel1.Controls.Add(propertyGrid1);
+            panel1.Controls.Add(treeView2);
             panel1.Controls.Add(statusStrip1);
             panel1.Controls.Add(treeView1);
             panel1.Dock = DockStyle.Fill;
@@ -51,6 +55,20 @@
             panel1.Name = "panel1";
             panel1.Size = new Size(800, 426);
             panel1.TabIndex = 0;
+            // 
+            // propertyGrid1
+            // 
+            propertyGrid1.Location = new Point(501, 11);
+            propertyGrid1.Name = "propertyGrid1";
+            propertyGrid1.Size = new Size(264, 248);
+            propertyGrid1.TabIndex = 3;
+            // 
+            // treeView2
+            // 
+            treeView2.Location = new Point(303, 12);
+            treeView2.Name = "treeView2";
+            treeView2.Size = new Size(182, 244);
+            treeView2.TabIndex = 2;
             // 
             // statusStrip1
             // 
@@ -69,10 +87,11 @@
             // 
             // treeView1
             // 
-            treeView1.Location = new Point(163, 45);
+            treeView1.Location = new Point(12, 12);
             treeView1.Name = "treeView1";
             treeView1.Size = new Size(285, 244);
             treeView1.TabIndex = 0;
+            treeView1.NodeMouseClick += treeView1_NodeMouseClick;
             // 
             // menuStrip1
             // 
@@ -94,21 +113,21 @@
             // runEditorToolStripMenuItem
             // 
             runEditorToolStripMenuItem.Name = "runEditorToolStripMenuItem";
-            runEditorToolStripMenuItem.Size = new Size(180, 22);
+            runEditorToolStripMenuItem.Size = new Size(146, 22);
             runEditorToolStripMenuItem.Text = "Run Editor";
             runEditorToolStripMenuItem.Click += runEditorToolStripMenuItem_Click;
             // 
             // loadTexturesToolStripMenuItem
             // 
             loadTexturesToolStripMenuItem.Name = "loadTexturesToolStripMenuItem";
-            loadTexturesToolStripMenuItem.Size = new Size(180, 22);
+            loadTexturesToolStripMenuItem.Size = new Size(146, 22);
             loadTexturesToolStripMenuItem.Text = "Load Textures";
             loadTexturesToolStripMenuItem.Click += loadTexturesToolStripMenuItem_Click;
             // 
             // loadTerrainToolStripMenuItem1
             // 
             loadTerrainToolStripMenuItem1.Name = "loadTerrainToolStripMenuItem1";
-            loadTerrainToolStripMenuItem1.Size = new Size(180, 22);
+            loadTerrainToolStripMenuItem1.Size = new Size(146, 22);
             loadTerrainToolStripMenuItem1.Text = "Load Terrain";
             loadTerrainToolStripMenuItem1.Click += loadTerrainToolStripMenuItem1_Click;
             // 
@@ -144,5 +163,7 @@
         private TreeView treeView1;
         private StatusStrip statusStrip1;
         private ToolStripStatusLabel toolStripStatusLabelInfo;
+        private PropertyGrid propertyGrid1;
+        private TreeView treeView2;
     }
 }
