@@ -45,7 +45,11 @@ namespace SimpleGridFly
         /// </summary>
         public Matrix4 GetViewMatrix()
         {
-            return Matrix4.LookAt(Position, Position + Front, Up);
+            var view = Matrix4.LookAt(Position, Position + Front, Up);
+            var mirrorZ = Matrix4.CreateScale(1, 1, -1); // Flip Z-axis
+            return view * mirrorZ;
+
+            // return Matrix4.LookAt(Position, Position + Front, Up);
         }
 
         /// <summary>
@@ -72,9 +76,9 @@ namespace SimpleGridFly
             }
             float velocity = _speed * deltaTime;
             if (keyboard.IsKeyDown(Keys.W))
-                Position += Front * velocity;
-            if (keyboard.IsKeyDown(Keys.S))
                 Position -= Front * velocity;
+            if (keyboard.IsKeyDown(Keys.S))
+                Position += Front * velocity;
             if (keyboard.IsKeyDown(Keys.A))
                 Position -= Right * velocity;
             if (keyboard.IsKeyDown(Keys.D))
@@ -91,7 +95,7 @@ namespace SimpleGridFly
         /// </summary>
         public void ProcessMouseDrag(float deltaX, float deltaY)
         {
-            Yaw += deltaX * _sensitivity;
+            Yaw -= deltaX * _sensitivity;
             Pitch -= deltaY * _sensitivity;
 
             // Make sure that when pitch is out of bounds, screen doesn't get flipped
@@ -110,7 +114,7 @@ namespace SimpleGridFly
             Vector3 front;
             front.X = MathF.Cos(MathHelper.DegreesToRadians(Yaw)) * MathF.Cos(MathHelper.DegreesToRadians(Pitch));
             front.Y = MathF.Sin(MathHelper.DegreesToRadians(Pitch));
-            front.Z = MathF.Sin(MathHelper.DegreesToRadians(Yaw)) * MathF.Cos(MathHelper.DegreesToRadians(Pitch));
+            front.Z = -MathF.Sin(MathHelper.DegreesToRadians(Yaw)) * MathF.Cos(MathHelper.DegreesToRadians(Pitch));
             Front = Vector3.Normalize(front);
 
             // Also re-calculate the Right and Up vector

@@ -1,6 +1,7 @@
 ﻿// TerrainManager.cs
 using OpenTK.Graphics.OpenGL4;
 using OpenTK.Mathematics;
+using SimpleGridFly.JMXFiles;
 using SimpleGridFly.Texture;
 using WinFormsApp1;
 
@@ -13,8 +14,13 @@ namespace SimpleGridFly
         // Dictionary to store loaded terrains with their grid positions as keys
         public Dictionary<(int X, int Z), TerrainMeshBase> LoadedTerrains { get; private set; } = new Dictionary<(int X, int Z), TerrainMeshBase>();
 
+        public Dictionary<(int X, int Z), OFileMapObject[]> LoadedTerrainObjectss { get; private set; } = new Dictionary<(int X, int Z), OFileMapObject[]>();
+
         // List to store all available terrains with their grid positions
         private readonly List<(int X, int Z, string FilePath)> _allTerrains = new List<(int X, int Z, string FilePath)>();
+
+        // List to store all available terrain objects with their grid positions
+        private readonly List<(int X, int Z, string FilePath)> _allTerrainObjects = new List<(int X, int Z, string FilePath)>();
 
         public List<(int X, int Z, string FilePath)> AllTerrains => _allTerrains;
 
@@ -44,6 +50,7 @@ namespace SimpleGridFly
 
             // Clear any existing entries
             _allTerrains.Clear();
+            _allTerrainObjects.Clear();
             LoadedTerrains.Clear();
 
             // Iterate through each subdirectory representing Z-coordinate
@@ -72,6 +79,22 @@ namespace SimpleGridFly
 
                     // Add to the list of all terrains
                     _allTerrains.Add((xCoord, zCoord, mFile));
+                }
+
+                // Iterate through each .m file in the Z-coordinate folder
+                var oFiles = Directory.GetFiles(zDir, "*.o");
+                foreach (var oFile in oFiles)
+                {
+                    // Extract X-coordinate from filename
+                    string xFileName = Path.GetFileNameWithoutExtension(oFile);
+                    if (!int.TryParse(xFileName, out int xCoord))
+                    {
+                        Console.WriteLine($"Invalid X-coordinate filename: {xFileName}.o", "Warning", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        continue;
+                    }
+
+                    // Add to the list of all terrains
+                    _allTerrainObjects.Add((xCoord, zCoord, oFile));
                 }
             }
 
@@ -117,6 +140,15 @@ namespace SimpleGridFly
                         LoadTerrain(region.X, region.Z, terrain.FilePath);
                     }
                 }
+                if (!LoadedTerrainObjectss.ContainsKey(region))
+                {
+                    // Find the corresponding file
+                    var terrain = _allTerrainObjects.Find(t => t.X == region.X && t.Z == region.Z);
+                    if (terrain != default)
+                    {
+                        LoadTerrainObjects(region.X, region.Z, terrain.FilePath);
+                    }
+                }
             }
 
             // Unload terrains that are no longer within the range
@@ -136,6 +168,23 @@ namespace SimpleGridFly
         private Vector3 CalculateRegionPosition(int regionX, int regionZ)
         {
             return new Vector3(regionX * RegionSeparation, 0f, regionZ * RegionSeparation);
+        }
+
+        private void LoadTerrainObjects(int regionX, int regionZ, string filePath)
+        {
+            if (File.Exists(filePath))
+            {
+                byte[] oFileRaw = File.ReadAllBytes(filePath);
+                var oF = new JMXFiles.JMXoFile(oFileRaw, (byte)regionX, (byte)regionZ);
+
+                var tempList = new List<OFileMapObject>();
+                foreach (var mapObj in oF.Data)
+                {
+                    tempList.Add(mapObj.Value);
+                }
+
+                LoadedTerrainObjectss[(regionX, regionZ)] = tempList.ToArray();
+            }
         }
 
         /// <summary>

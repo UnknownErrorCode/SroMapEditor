@@ -16,6 +16,8 @@ namespace SimpleGridFly
     {
         // --- Member Variables ---
 
+        private string MapPath = "I:\\Clients\\Exay-Origin V1.014\\Map";
+
         // Interval (in seconds) for terrain updates
         private const double UpdateInterval = 0.5;
 
@@ -40,6 +42,8 @@ namespace SimpleGridFly
 
         private GridManager _gridManager;
 
+        private MapObjectManager _mapObjectManager;
+
         // Cache for pre-generated text textures to avoid redundant processing
         private Dictionary<string, int> _textTexturesCache = new Dictionary<string, int>();
 
@@ -48,9 +52,12 @@ namespace SimpleGridFly
 
         public List<(int X, int Z, string)> LoadedTerrains => _terrainManager.AllTerrains;
 
-        public GridGame(GameWindowSettings gws, NativeWindowSettings nws)
+        public List<MapObject> LoadedMapObjects => _mapObjectManager.MapObjects;
+
+        public GridGame(GameWindowSettings gws, NativeWindowSettings nws, string mapPath)
             : base(gws, nws)
         {
+            MapPath = mapPath;
             // We do NOT lock the mouse, so we can click & drag
             CursorState = CursorState.Normal;
             // Set update frequency to 50 frames per second
@@ -66,10 +73,14 @@ namespace SimpleGridFly
 
             _gridManager = new GridManager();
             _terrainManager = new TerrainManager();
+            _mapObjectManager = new MapObjectManager();
         }
 
         internal void InitializeTerrainMeshes()
-           => _terrainManager.IndexTerrains("I:\\Clients\\Exay-Origin V1.014\\Map");
+           => _terrainManager.IndexTerrains(MapPath);
+
+        internal void InitializeMapObjectInfo()
+            => _mapObjectManager.Initilalize(MapPath);
 
         protected override void OnLoad()
         {
@@ -79,7 +90,7 @@ namespace SimpleGridFly
             GL.ClearColor(0.1f, 0.1f, 0.1f, 1.0f);
             GL.Enable(EnableCap.DepthTest);
             GL.Enable(EnableCap.DebugOutput);
-            GL.DebugMessageCallback(DebugCallback, IntPtr.Zero);
+            GL.DebugMessageCallback(DebugCallback, nint.Zero);
         }
 
         protected override void OnMouseDown(MouseButtonEventArgs e)
@@ -197,12 +208,12 @@ namespace SimpleGridFly
             // Press 'O' to open folder dialog
             if (KeyboardState.IsKeyPressed(Keys.O))
             {
-                _terrainManager.IndexTerrains("I:\\Clients\\Exay-Origin V1.014\\Map");
+                _terrainManager.IndexTerrains(MapPath);
             }
 
             if (KeyboardState.IsKeyPressed(Keys.T))
             {
-                TextureManager.InitializeTextures("I:\\Clients\\Exay-Origin V1.014\\Map");
+                TextureManager.InitializeTextures(MapPath);
             }
 
             // Update current region coordinates
@@ -219,7 +230,7 @@ namespace SimpleGridFly
             _currentText = $"Region X: {_currentRegionX}, Z: {_currentRegionZ}   {_camera.Position}  ";
         }
 
-        private static void DebugCallback(DebugSource source, DebugType type, int id, DebugSeverity severity, int length, IntPtr message, IntPtr userParam)
+        private static void DebugCallback(DebugSource source, DebugType type, int id, DebugSeverity severity, int length, nint message, nint userParam)
         {
             string msg = Marshal.PtrToStringAnsi(message, length);
             Console.WriteLine($"GL Debug: {msg}");
@@ -250,9 +261,9 @@ namespace SimpleGridFly
             Bitmap bmp = new Bitmap(512, 64);
             using (Graphics gfx = Graphics.FromImage(bmp))
             {
-                gfx.Clear(System.Drawing.Color.Transparent);
+                gfx.Clear(Color.Transparent);
                 using (Font font = new Font(FontFamily.GenericSansSerif, 16))
-                using (SolidBrush brush = new SolidBrush(System.Drawing.Color.White))
+                using (SolidBrush brush = new SolidBrush(Color.White))
                 {
                     gfx.DrawString(text, font, brush, new PointF(0, 0));
                 }

@@ -56,40 +56,36 @@ public class GridManager
     /// </returns>
     public static float[] GenerateGrid(int regionCountX, int regionCountZ)
     {
-        var lines = new List<float>(); // Stores the grid vertices and their colors.
+        var lines = new List<float>();
 
-        // Constants for grid configuration
         float regionSeparation = 1920f;  // Distance between major region boundaries.
         float blockSize = 120f;         // Distance between minor subdivisions within a region.
-        float totalWidth = regionCountX * regionSeparation; // Total grid width in the X direction.
-        float totalHeight = regionCountZ * regionSeparation; // Total grid height in the Z direction.
+        float totalWidth = regionCountX * regionSeparation;
+        float totalHeight = regionCountZ * regionSeparation;
 
-        // Colors for the grid lines
-        Vector3 minorColor = new Vector3(0.0f, 0.0f, 0.9f); // Blue color for minor lines.
-        Vector3 majorColor = new Vector3(0.9f, 0.0f, 0.0f); // Red color for major lines.
+        Vector3 minorColor = new Vector3(0.0f, 0.0f, 0.9f); // Blue for minor lines.
+        Vector3 majorColor = new Vector3(0.9f, 0.0f, 0.0f); // Red for major lines.
 
         // Generate lines parallel to the X-axis (constant Z)
         for (int z = 0; z <= regionCountZ; z++)
         {
-            float zPos = z * regionSeparation; // Position of the major line along the Z-axis.
+            float zPos = totalHeight - z * regionSeparation; // Invert Z-axis direction.
 
-            // Add a major line at the region boundary
             lines.AddRange(new float[]
             {
-                0, 0, zPos, majorColor.X, majorColor.Y, majorColor.Z,             // Start vertex
-                totalWidth, 0, zPos, majorColor.X, majorColor.Y, majorColor.Z,    // End vertex
+            0, 0, zPos, majorColor.X, majorColor.Y, majorColor.Z,
+            totalWidth, 0, zPos, majorColor.X, majorColor.Y, majorColor.Z,
             });
 
-            // Add minor lines within the region
-            if (z < regionCountZ) // Only add minor lines if not at the last region boundary
+            if (z < regionCountZ)
             {
-                for (int b = 1; b < 16; b++) // 16 blocks per region
+                for (int b = 1; b < 16; b++)
                 {
-                    float minorZ = zPos + b * blockSize; // Position of the minor line within the region.
+                    float minorZ = zPos - b * blockSize; // Invert Z-axis direction.
                     lines.AddRange(new float[]
                     {
-                        0, 0, minorZ, minorColor.X, minorColor.Y, minorColor.Z,             // Start vertex
-                        totalWidth, 0, minorZ, minorColor.X, minorColor.Y, minorColor.Z,    // End vertex
+                    0, 0, minorZ, minorColor.X, minorColor.Y, minorColor.Z,
+                    totalWidth, 0, minorZ, minorColor.X, minorColor.Y, minorColor.Z,
                     });
                 }
             }
@@ -98,31 +94,28 @@ public class GridManager
         // Generate lines parallel to the Z-axis (constant X)
         for (int x = 0; x <= regionCountX; x++)
         {
-            float xPos = x * regionSeparation; // Position of the major line along the X-axis.
+            float xPos = x * regionSeparation;
 
-            // Add a major line at the region boundary
             lines.AddRange(new float[]
             {
-                xPos, 0, 0, majorColor.X, majorColor.Y, majorColor.Z,             // Start vertex
-                xPos, 0, totalHeight, majorColor.X, majorColor.Y, majorColor.Z,   // End vertex
+            xPos, 0, totalHeight, majorColor.X, majorColor.Y, majorColor.Z, // Start at the top.
+            xPos, 0, 0, majorColor.X, majorColor.Y, majorColor.Z,           // End at the bottom.
             });
 
-            // Add minor lines within the region
-            if (x < regionCountX) // Only add minor lines if not at the last region boundary
+            if (x < regionCountX)
             {
-                for (int b = 1; b < 16; b++) // 16 blocks per region
+                for (int b = 1; b < 16; b++)
                 {
-                    float minorX = xPos + b * blockSize; // Position of the minor line within the region.
+                    float minorX = xPos + b * blockSize;
                     lines.AddRange(new float[]
                     {
-                        minorX, 0, 0, minorColor.X, minorColor.Y, minorColor.Z,             // Start vertex
-                        minorX, 0, totalHeight, minorColor.X, minorColor.Y, minorColor.Z,  // End vertex
+                    minorX, 0, totalHeight, minorColor.X, minorColor.Y, minorColor.Z,
+                    minorX, 0, 0, minorColor.X, minorColor.Y, minorColor.Z,
                     });
                 }
             }
         }
 
-        // Return the grid data as a flat array
         return lines.ToArray();
     }
 

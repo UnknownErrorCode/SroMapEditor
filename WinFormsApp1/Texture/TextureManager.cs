@@ -61,7 +61,7 @@ namespace SimpleGridFly.Texture
             if (!File.Exists(ifoPath))
             {
                 MessageBox.Show("Could not find tile2d.ifo. Terminating application.");
-                Environment.Exit(1);
+                return;
             }
 
             List<TextureInfo> textureInfos = ParseTextureFile(ifoPath);
